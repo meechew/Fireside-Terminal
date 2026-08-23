@@ -1,57 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Fireside Terminal</title>
-  <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #0a0a0a;
-      color: #e0a458;
-      font-family: "Courier New", Courier, monospace;
-    }
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-    }
-    pre {
-      color: #ff7733;
-      font-size: 14px;
-      line-height: 1.1;
-      margin: 0 0 1.5rem;
-    }
-    h1 {
-      font-size: 1.5rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      margin: 0 0 0.5rem;
-    }
-    p {
-      color: #9a8866;
-      margin: 0.25rem 0;
-    }
-    a { color: #e0a458; }
-  </style>
+  <meta name="description" content="A cozy ASCII fireplace — retro terminal fire animation with CRT post-processing and NES-style renditions of public-domain Christmas carols.">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <main>
-    <pre>
-   (  .      )
-    )   . '(
-   (  ,  ) .
-  . ) ( . '  )
-   ,&amp;#&amp;. ' .
-   #&amp;@#&amp;,
-    \###/
-   ==@@@==
-    </pre>
-    <h1>Fireside Terminal</h1>
-    <p>The fire is being kindled. Check back soon.</p>
-    <p><a href="PRIVACY.md">Privacy</a> &middot; <a href="TERMS.md">Terms</a></p>
-  </main>
+  <!-- Fire is rendered full-screen; the bordered ASCII box is centered within. -->
+  <canvas id="fire"></canvas>
+  <!-- CRT post-processing overlay; sits above the fire, hidden by default. -->
+  <canvas id="crt" hidden></canvas>
+
+  <!-- Control panels float above the fire, mirroring the native side panels. -->
+  <div id="left" class="panel"></div>
+  <div id="right" class="panel"></div>
+
+  <!-- Topmost CRT grid: scanlines + pixel separation + vignette, applied over
+       the fire AND the panels (matches the native full-screen overlay). -->
+  <canvas id="grid" hidden></canvas>
+
+  <!-- Boot splash (BIOS POST gag) — sits above everything; main.js removes it
+       after a beat or on the first key press / click. -->
+  <img id="splash" src="splash.png" alt="">
+
+  <noscript><p style="color:#e0a458;font-family:monospace;padding:2rem;">Fireside Terminal needs JavaScript to burn.</p></noscript>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
