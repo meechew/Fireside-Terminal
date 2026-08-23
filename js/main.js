@@ -282,7 +282,7 @@ async function init() {
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("dblclick", toggleFullscreen);
   initIdleCursor();
-  initDonation();
+  initDonation(palette);
 
   // Boot splash — hold the BIOS screen for a beat, then reveal the fire.
   // Any key or click skips it.

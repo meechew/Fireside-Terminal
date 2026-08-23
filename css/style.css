@@ -74,7 +74,8 @@ body.idle, body.idle * {
   z-index: 10;
 }
 
-/* Donation pop-up (exit intent) — terminal-styled modal. */
+/* Donation pop-up (exit intent) — terminal-styled modal. All colors come
+   inline from the active palette (set in donate.js). */
 #donate {
   position: fixed;
   inset: 0;
@@ -82,14 +83,11 @@ body.idle, body.idle * {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
 }
 
 #donate-box {
   font-family: "Less Perfect DOS VGA", monospace;
-  background: #000;
-  color: #e0a458;
-  border: 4px double #e0a458;
+  border: 4px double;
   padding: 2.5rem 3.5rem;
   text-align: center;
 }
@@ -102,7 +100,6 @@ body.idle, body.idle * {
 
 #donate-msg {
   font-size: 2rem;
-  color: #ff7733;
   letter-spacing: 0.1em;
   margin-bottom: 2rem;
 }
@@ -110,8 +107,6 @@ body.idle, body.idle * {
 #donate-close {
   font-family: inherit;
   font-size: 1.1rem;
-  background: #e0a458;
-  color: #000;
   border: none;
   padding: 0.5rem 1.25rem;
   cursor: pointer;
