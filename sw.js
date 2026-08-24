@@ -3,7 +3,7 @@
 // while the fire still burns with no connection at all.
 //
 // Bump CACHE on any deploy that changes cached files.
-const CACHE = "fireside-v2";
+const CACHE = "fireside-v3";
 
 const SHELL = [
   "./",
@@ -21,6 +21,10 @@ const SHELL = [
   "js/donate.js",
   "js/audio/fireside-processor.js",
   "fonts/LessPerfectDOSVGA.ttf",
+  "qr/btc.png",
+  "qr/eth.png",
+  "qr/xrp.png",
+  "qr/paypal.png",
   "splash.png",
   "icons/favicon-48.png",
   "icons/icon-192.png",
