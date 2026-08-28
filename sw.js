@@ -3,7 +3,7 @@
 // while the fire still burns with no connection at all.
 //
 // Bump CACHE on any deploy that changes cached files.
-const CACHE = "fireside-v4";
+const CACHE = "fireside-v5";
 
 const SHELL = [
   "./",
