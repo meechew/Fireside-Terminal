@@ -86,7 +86,8 @@ body.idle, body.idle * {
   font-family: "Less Perfect DOS VGA", monospace;
 }
 
-/* Donation QR codes — one per corner, palette-tinted onto canvas. */
+/* Donation QR codes — corners + top/bottom center, palette-tinted onto
+   canvas. */
 .donate-qr {
   position: absolute;
   display: flex;
@@ -96,8 +97,10 @@ body.idle, body.idle * {
 }
 
 .donate-qr.tl { top: 2.5vh; left: 2.5vw; }
+.donate-qr.tc { top: 2.5vh; left: 50%; transform: translateX(-50%); }
 .donate-qr.tr { top: 2.5vh; right: 2.5vw; }
 .donate-qr.bl { bottom: 2.5vh; left: 2.5vw; }
+.donate-qr.bc { bottom: 2.5vh; left: 50%; transform: translateX(-50%); }
 .donate-qr.br { bottom: 2.5vh; right: 2.5vw; }
 
 .donate-qr canvas {
@@ -127,7 +130,7 @@ body.idle, body.idle * {
     width: min(92vw, 480px);
     padding: 1.5rem 1rem;
   }
-  .donate-qr { position: static; }
+  .donate-qr { position: static; transform: none; }
 }
 
 #donate-box {
