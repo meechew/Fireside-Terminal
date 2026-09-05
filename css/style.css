@@ -31,7 +31,9 @@ body.idle, body.idle * {
   height: 100%;
 }
 
-#fire { z-index: 0; }
+/* touch-action: none — a tap is a stoke (PLAN-1.1.0.md #1), never a
+   scroll or a pinch-zoom on the PWA. */
+#fire { z-index: 0; touch-action: none; }
 #crt  { z-index: 1; pointer-events: none; }   /* glow/bloom, above raw fire */
 .panel { z-index: 2; }
 #grid { z-index: 3; pointer-events: none; }    /* scanlines/vignette, topmost */

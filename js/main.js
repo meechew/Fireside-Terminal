@@ -84,7 +84,10 @@ function computeLayout(W, H) {
 }
 
 // --- Panels ----------------------------------------------------------------
-const LEFT_LABELS = ["O2 +", "O2 -", "FUEL +", "FUEL -", "PC SPEAKER", "KILLER KARD", "SOUND OFF", "CRT OFF"];
+// Panel order matches tvOS (PLAN-1.1.0.md features 2 + 11): FUEL leads the
+// flame pair, SOUND OFF leads the sound group, and the premium pair
+// (KILLER KARD, CRT) sits together at the bottom.
+const LEFT_LABELS = ["FUEL +", "FUEL -", "O2 +", "O2 -", "SOUND OFF", "PC SPEAKER", "KILLER KARD", "CRT OFF"];
 let leftButtons = [];
 let rightButtons = [];
 let crtButton = null;
@@ -107,13 +110,13 @@ function buildPanels() {
   });
 
   // Left controls
-  leftButtons[0].onclick = () => fire.incrementOxygen();
-  leftButtons[1].onclick = () => fire.decrementOxygen();
-  leftButtons[2].onclick = () => fire.incrementFuel();
-  leftButtons[3].onclick = () => fire.decrementFuel();
-  leftButtons[4].onclick = () => audio.setMode(Mode.PcSpeaker);
-  leftButtons[5].onclick = () => audio.setMode(Mode.KillerKard);
-  leftButtons[6].onclick = () => audio.setMode(Mode.Off);
+  leftButtons[0].onclick = () => fire.incrementFuel();
+  leftButtons[1].onclick = () => fire.decrementFuel();
+  leftButtons[2].onclick = () => fire.incrementOxygen();
+  leftButtons[3].onclick = () => fire.decrementOxygen();
+  leftButtons[4].onclick = () => audio.setMode(Mode.Off);
+  leftButtons[5].onclick = () => audio.setMode(Mode.PcSpeaker);
+  leftButtons[6].onclick = () => audio.setMode(Mode.KillerKard);
   crtButton.onclick = () => toggleCrt();
 
   // Right palette selectors
@@ -159,6 +162,24 @@ function toggleCrt() {
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+// --- Stoke the fire --------------------------------------------------------
+// Click/tap inside the fire grid drops a hot blob that flares and rises with
+// the next tick (PLAN-1.1.0.md #1). The canvas backing store is sized to the
+// window while the CSS box is pinned to 1920x1080, so the hit has to be
+// scaled through the element's rendered rect rather than read from clientX.
+function onFirePointerDown(e) {
+  if (!layout) return;
+  const rect = fireCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const px = (e.clientX - rect.left) * (fireCanvas.width / rect.width);
+  const py = (e.clientY - rect.top) * (fireCanvas.height / rect.height);
+  const col = Math.floor((px - layout.fireX) / layout.cw);
+  const row = Math.floor((py - layout.fireY) / layout.ch);
+  // stoke() rejects anything outside the fire grid, so clicks on the border,
+  // the log art, and the ember bed fall through harmlessly.
+  fire.stoke(col, row);
 }
 
 // --- Keyboard --------------------------------------------------------------
@@ -281,6 +302,7 @@ async function init() {
   window.addEventListener("resize", relayout);
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("dblclick", toggleFullscreen);
+  fireCanvas.addEventListener("pointerdown", onFirePointerDown);
   initIdleCursor();
   initDonation(palette);
 

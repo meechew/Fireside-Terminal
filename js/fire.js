@@ -72,6 +72,28 @@ export class Fire {
   incrementFuel()   { this.fuel   = Math.min(this.fuel + 1, PARAM_MAX); }
   decrementFuel()   { this.fuel   = Math.max(this.fuel - 1, PARAM_MIN); }
 
+  // Stoke the fire (PLAN-1.1.0.md feature 1): drop a hot blob at the cell the
+  // pointer hit. No new state and no timer — the next step() carries the blob
+  // upward with everything else, so it flares and rises like a real spark.
+  // Heat is only ever raised, so a stoke can't dim a cell that's already
+  // hotter. Column cols-1 is excluded because render() never draws it.
+  stoke(col, row) {
+    const { cols, rows, heat } = this;
+    if (col < 0 || col > cols - 2 || row < 0 || row > rows - 1) return;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = col + dx;
+        const y = row + dy;
+        if (x < 0 || x > cols - 2 || y < 0 || y > rows - 1) continue;
+        // Plus-shaped falloff: hottest at the click, cooler on the diagonals.
+        const dist = Math.abs(dx) + Math.abs(dy);
+        const value = dist === 0 ? 255 : dist === 1 ? 190 : 120;
+        const i = y * cols + x;
+        if (heat[i] < value) heat[i] = value;
+      }
+    }
+  }
+
   // One fire frame: re-seed the bottom row, propagate upward with drift + cooling.
   step() {
     const { cols, rows, heat } = this;
