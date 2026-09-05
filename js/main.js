@@ -145,12 +145,41 @@ function applyButtonStyle() {
 }
 
 // --- Actions ---------------------------------------------------------------
-function selectPalette(i) {
-  if (i < 0 || i >= PALETTES.length) return;
+// Apply a palette without any side effect on the rotation — the shared path
+// used by both a user press and the auto-rotation.
+function applyPalette(i) {
   paletteIndex = i;
   applyButtonStyle();
   crt.setMonochrome(palette().monochrome, palette().textRGB);
   console.log("[Palette]", palette().name);
+}
+
+function selectPalette(i) {
+  if (i < 0 || i >= PALETTES.length) return;
+  stopThemeRotation();   // the user is taking control of the theme
+  applyPalette(i);
+}
+// --- Theme rotation ----------------------------------------------------------
+// Until the user picks a theme, cycle the palette on its own so the app shows
+// off the whole set unattended (PLAN-1.1.0.md feature 5). Armed when the boot
+// splash clears, so the first advance never lands during the splash.
+//
+// The rotation walks the FULL list, premium themes included — it is a showcase,
+// so it applies palettes directly and never consults the paywall gate. Only a
+// deliberate palette press stops it; O2/fuel, sound and CRT input all leave it
+// running. No persistence: every launch starts rotating again.
+const ROTATE_MS = 30000;
+let rotateTimer = null;
+
+function startThemeRotation() {
+  if (rotateTimer !== null) return;
+  rotateTimer = setInterval(() => applyPalette((paletteIndex + 1) % PALETTES.length), ROTATE_MS);
+}
+
+function stopThemeRotation() {
+  if (rotateTimer === null) return;
+  clearInterval(rotateTimer);
+  rotateTimer = null;
 }
 
 function toggleCrt() {
@@ -310,10 +339,12 @@ async function init() {
   // Any key or click skips it.
   const splash = document.getElementById("splash");
   if (splash) {
-    const dismiss = () => splash.remove();
+    const dismiss = () => { splash.remove(); startThemeRotation(); };
     setTimeout(dismiss, 5000);
     window.addEventListener("keydown", dismiss, { once: true });
     window.addEventListener("pointerdown", dismiss, { once: true });
+  } else {
+    startThemeRotation();   // no splash to wait on
   }
 
   // PWA: register the service worker for offline + install support.

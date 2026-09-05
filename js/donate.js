@@ -9,7 +9,11 @@
 // Ripple BL, Square bottom-center, Ethereum BR — re-tinted at show time:
 // modules in the PLEASE DONATE hot color on a black tile.
 //
-// Preview while styling: open the page with ?donate=1.
+// URL hooks: ?donate=1 forces the pop-up open (preview while styling);
+// ?nonag=1 suppresses it entirely. If both are given, nonag wins. Parameter
+// only — deliberately no localStorage, so a shared link can carry the
+// suppression without silently persisting it on the visitor's device
+// (PLAN-1.1.0.md feature 8).
 
 let shown = false;
 let overlay = null;
@@ -115,6 +119,12 @@ function build(p) {
 }
 
 export function initDonation(getPalette) {
+  const params = new URLSearchParams(location.search);
+
+  // Opt out entirely. Checked before anything is wired up, so no listener is
+  // registered at all — and it beats ?donate=1 when both are present.
+  if (params.has("nonag")) return;
+
   const show = () => {
     if (shown) return;
     shown = true;
@@ -127,5 +137,5 @@ export function initDonation(getPalette) {
     if (!e.relatedTarget && e.clientY <= 0) show();
   });
 
-  if (new URLSearchParams(location.search).has("donate")) show();
+  if (params.has("donate")) show();
 }
