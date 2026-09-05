@@ -3,7 +3,7 @@
 // while the fire still burns with no connection at all.
 //
 // Bump CACHE on any deploy that changes cached files.
-const CACHE = "fireside-v7";
+const CACHE = "fireside-v8"; // v8 = Digital Rain replaces Abyss (inverted ramp)
 
 const SHELL = [
   "./",

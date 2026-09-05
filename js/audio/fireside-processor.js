@@ -33,11 +33,21 @@ const FLARE_MEAN_S  = 18;     // average seconds between flare-up surges
 const rnd = Math.random;            // QRandomGenerator::generateDouble()
 const boundedZero = (n) => Math.floor(rnd() * n) === 0; // rng->bounded(n) == 0
 
+// Simulated retro "module swap": 0.25 s to unload whatever was sounding and
+// 0.25 s to load what comes next — applied between songs (natural rotation
+// AND Blue-key skip) and on mode switches (PLAN-1.1.0.md feature 4
+// follow-up, user spec 2026-08-31). The Samsung file engine is exempt (CDN
+// streaming latency already provides the gap), and the library renders pass
+// `gapless` so no silence is ever baked into the MP3s.
+const GAP_S = 0.25;
+
 class FiresideProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.sr = sampleRate; // AudioWorkletGlobalScope global
     this.songs = (options && options.processorOptions && options.processorOptions.songs) || [];
+    this.gapless = !!(options && options.processorOptions && options.processorOptions.gapless);
+    this.gapFrames = 0;
     this.mode = "Off";
 
     // ---- NES state ----
@@ -91,15 +101,26 @@ class FiresideProcessor extends AudioWorkletProcessor {
              gl: 0.7071, gr: 0.7071 };
   }
 
+  // Queue the module-swap silence: 0.25 s per true flag (unload the old
+  // sound, load the new one). No-op for gapless (offline render) instances.
+  moduleGap(unload, load) {
+    if (this.gapless) return;
+    this.gapFrames = Math.round(this.sr * GAP_S) * ((unload ? 1 : 0) + (load ? 1 : 0));
+  }
+
   onMessage(m) {
     if (!m) return;
     if (m.type === "mode") {
       if (this.mode === m.mode) return;
+      this.moduleGap(this.mode !== "Off", m.mode !== "Off");
       this.mode = m.mode;
       if (m.mode === "PcSpeaker") this.startNes();
       else if (m.mode === "KillerKard") this.resetKK();
     } else if (m.type === "next") {
-      if (this.mode === "PcSpeaker" && this.songs.length) this.advanceSong();
+      if (this.mode === "PcSpeaker" && this.songs.length) {
+        this.moduleGap(true, true);
+        this.advanceSong();
+      }
     }
   }
 
@@ -251,8 +272,13 @@ class FiresideProcessor extends AudioWorkletProcessor {
       out[i] = s / 32768;
 
       if (++this.songPos >= this.songLenFrames) {
-        if (++this.loopsPlayed >= song.loops) this.advanceSong();
-        else this.resetTracks();
+        if (++this.loopsPlayed >= song.loops) {
+          this.advanceSong();
+          this.moduleGap(true, true);
+          if (this.gapFrames > 0) { out.fill(0, i + 1); return; }
+        } else {
+          this.resetTracks();
+        }
       }
     }
   }
@@ -474,6 +500,14 @@ class FiresideProcessor extends AudioWorkletProcessor {
     if (!out || !out.length) return true;
     const ch0 = out[0];
     const frames = ch0.length;
+
+    // Module-swap gap: hold silence while a "load" is in progress. Whole-
+    // block granularity (128 frames ≈ 3 ms) is well under the 250 ms feel.
+    if (this.gapFrames > 0) {
+      this.gapFrames -= frames;
+      for (const c of out) c.fill(0);
+      return true;
+    }
 
     if (this.mode === "KillerKard") {
       if (out.length > 1) {

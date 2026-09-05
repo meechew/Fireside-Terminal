@@ -52,8 +52,10 @@ const FIRE_RAMP = [
   [256, [255, 255, 255]],
 ];
 
-// Digital-rain green (user-approved 2026-08-04) — kept OUT of the rotation;
-// swap it in for "1978" to go full Matrix. Mirrors makeDigitalRain() native.
+// Digital-rain green (user-approved 2026-08-04) — in rotation since 1.1.0,
+// replacing ABYSS. Ramp is INVERTED (except the sub-20 black band): sparse
+// flame tips render bright white like a rain column's leading glyph, the hot
+// core fades to deep dark green. Mirrors makeDigitalRain() native.
 export const DIGITAL_RAIN = makePalette({
   name: "DIGITAL RAIN",
   text: [0, 255, 65],
@@ -61,16 +63,37 @@ export const DIGITAL_RAIN = makePalette({
   monochrome: true,
   ramp: [
     [20,  [0,   0,   0]],
-    [50,  [0,   25,  10]],
-    [80,  [0,   55,  25]],
-    [110, [0,   90,  35]],
-    [140, [0,   180, 55]],
-    [170, [0,   255, 65]],
-    [195, [110, 255, 140]],
-    [220, [180, 255, 200]],
-    [240, [225, 255, 235]],
-    [250, [245, 255, 248]],
-    [256, [255, 255, 255]],
+    [50,  [255, 255, 255]],
+    [80,  [245, 255, 248]],
+    [110, [225, 255, 235]],
+    [140, [180, 255, 200]],
+    [170, [110, 255, 140]],
+    [195, [0,   255, 65]],
+    [220, [0,   180, 55]],
+    [240, [0,   90,  35]],
+    [250, [0,   55,  25]],
+    [256, [0,   25,  10]],
+  ],
+});
+
+// Deep-sea dive — kept OUT of the rotation since 1.1.0 (its slot went to
+// DIGITAL RAIN, decision 2026-08-30). Mirrors makeAbyss() native.
+export const ABYSS = makePalette({
+  name: "ABYSS",
+  text: [45, 190, 175],
+  wood: [110, 145, 135],
+  ramp: [
+    [20,  [0,   0,   0]],
+    [50,  [10,  20,  55]],
+    [80,  [15,  45,  105]],
+    [110, [20,  80,  150]],
+    [140, [25,  130, 160]],
+    [170, [35,  175, 165]],
+    [195, [80,  210, 170]],
+    [220, [130, 235, 200]],
+    [240, [180, 245, 225]],
+    [250, [215, 250, 240]],
+    [256, [240, 255, 252]],
   ],
 });
 
@@ -97,24 +120,7 @@ export const PALETTES = [
       [256, [255, 255, 255]],
     ],
   }),
-  makePalette({
-    name: "ABYSS",
-    text: [45, 190, 175],
-    wood: [110, 145, 135],
-    ramp: [
-      [20,  [0,   0,   0]],
-      [50,  [10,  20,  55]],
-      [80,  [15,  45,  105]],
-      [110, [20,  80,  150]],
-      [140, [25,  130, 160]],
-      [170, [35,  175, 165]],
-      [195, [80,  210, 170]],
-      [220, [130, 235, 200]],
-      [240, [180, 245, 225]],
-      [250, [215, 250, 240]],
-      [256, [240, 255, 252]],
-    ],
-  }),
+  DIGITAL_RAIN,
   makePalette({
     name: "PRISM",
     text: [255, 60, 170],
