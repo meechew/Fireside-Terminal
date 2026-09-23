@@ -11,11 +11,48 @@ import { Crt } from "./crt.js";
 import { AudioEngine, Mode } from "./audio.js";
 import { PLATFORM, keepScreenAlive, registerRemoteKeys, exitApp, isBackKey, applySafeArea } from "./platform.js";
 import { initDonation } from "./donate.js";
+import { runBootSplash } from "./boot.js";
+import { createHud } from "./hud.js";
 
 const fontSpec = (px) => `${px}px "${FONT_NAME}", monospace`;
 
 const fire = new Fire();
 const audio = new AudioEngine();
+
+// Exit intent is a POINTER gesture -- the cursor leaving through the top of
+// the viewport -- so on a touch device the donation pop-up had no way in at
+// all. Rather than invent a mobile nag that interrupts, the pop-up gets a
+// door: the HUD's lower-right slot, which in this free edition is empty
+// forever (it exists for the premium nag the TV builds run, and there is no
+// premium here). It already yields the row if it would collide with the
+// now-playing readout, and the 1 Hz blink is already on the element.
+//
+// It is shown on EVERY pointer type, not just coarse ones. It was gated to
+// coarse at first, on the reasoning that a mouse already has exit intent --
+// but `(pointer: coarse)` is read once at load, so anything that changes
+// afterwards is missed, and the gate mostly succeeded at hiding the control
+// from the person developing it. A passive corner readout is also not the
+// kind of "nag" that decision was about: it interrupts nothing.
+const DONATE_NAG_TEXT = "DONATE HERE!";
+// Always lit, per the brief -- NOT hud.js's setNag() duty cycle, which shows
+// the premium nag for 10 s once every 3 minutes. That cadence exists to keep
+// a blinking corner from etching an LG OLED panel, and a permanent blink
+// gives that protection up. Since this one is always on the anti-burn-in
+// drift matters MORE, not less, so it is kept: same +-3 px / +-1 px jitter
+// hud.js uses, just on its own slow timer instead of once per duty cycle.
+const DONATE_DRIFT_MS = 30000;
+const DONATE_DRIFT_X  = 3;
+const DONATE_DRIFT_Y  = 1;
+let openDonation = () => {};
+let donateNagOn = false;
+
+const jitter = (n) => Math.floor(Math.random() * (2 * n + 1)) - n;
+
+function driftDonateNag() {
+  if (!donateNagOn) return;
+  hud.nag.style.transform =
+    `translate(${jitter(DONATE_DRIFT_X)}px, ${jitter(DONATE_DRIFT_Y)}px)`;
+}
 
 let paletteIndex = 0;
 let crtEnabled = false;
@@ -25,7 +62,11 @@ const fireCanvas = document.getElementById("fire");
 const fireCtx = fireCanvas.getContext("2d");
 const leftPanel = document.getElementById("left");
 const rightPanel = document.getElementById("right");
+// No { nag }: this edition is free, so there is no premium blink and nothing
+// of the kind has ever been burned into its tube. It still gets the
+// now-playing burn (PLAN-1.1.0.md feature 14).
 const crt = new Crt(fireCanvas, document.getElementById("crt"), document.getElementById("grid"));
+let hud = null;
 
 const palette = () => PALETTES[paletteIndex];
 
@@ -42,44 +83,175 @@ function measure(ctx, px) {
   };
 }
 
-// Pick the largest font size whose bordered box fits the screen and stays
-// between the side panels, then compute the full layout (mirrors BurningLog +
-// AppLayout geometry exactly so panels track the fire box).
+// --- Layout ----------------------------------------------------------------
+// Two geometries, one contract.
+//
+// LANDSCAPE is the TV layout: the bordered box between two vertical button
+// rails, mirroring AppLayout.cpp so the panels track the fire box.
+//
+// PORTRAIT (PLAN-1.1.0.md feature 10) stacks instead -- frame on top,
+// full-width controls underneath. It exists because 83 columns plus two
+// 225 px rails simply do not fit across a viewport held upright, and the old
+// single geometry did not degrade, it inverted: `W - 2*PANEL_W - 40` went
+// NEGATIVE on a 375 px phone, the font slammed into its floor, the right rail
+// was laid out entirely off-screen (measured x = 577) and the left one sat on
+// top of the fire clipping its own labels.
+//
+// Scaling the whole TV layout down to fit was the cheaper option and it is
+// the wrong one here: 375/1920 is 0.195, which letterboxes the entire UI into
+// a 211 px strip of 3.5 px text. The 80x32 grid is TEXTURE -- it still reads
+// as fire at 4 px a cell -- but labels are TEXT, so portrait decouples the
+// two and sizes panel type on its own (PORTRAIT_BTN_PX, below).
+const PORTRAIT_MAX_W  = 860;  // upright and narrower than this -> stacked
+const PORTRAIT_MARGIN = 8;
+const CONTROL_COLS    = 2;    // pairs the list up: FUEL / O2 / sound / premium
+const BTN_MIN_H       = 44;   // touch-target floor
+const BTN_GAP         = 6;
+const STRIP_H         = 48;   // the palette row
+const PORTRAIT_BTN_PX = 15;   // panel text -- NOT layout.fontPx
+// The palette row shows all eight AT ONCE -- no scrolling. The cells split
+// the width evenly and the type sizes itself to what a cell can hold: the
+// largest size at which the LONGEST name still fits whole, capped at the
+// control font and floored at STRIP_FONT_MIN.
+//
+// Above about 589 px -- upright tablets -- nothing truncates. Every phone is
+// narrower than that, so the floor wins there and DIGITAL RAIN and ALEJANDRA
+// ellipsize; the other six show whole. That is the deliberate trade: eight
+// palettes you can see and reach beat eight whole words parked off-screen
+// behind a scroll gesture nobody knows is there. Every name is still unique
+// in its first four characters, so a clipped one is never ambiguous.
+//
+// The three geometry values are duplicated in css/style.css (`body.portrait
+// #right`) because the browser lays the cells out and this only predicts the
+// result. Change them together or the type stops matching its cell.
+const STRIP_GAP      = BTN_GAP;          // the control grid's own gap and gutters,
+const STRIP_PAD_X    = PORTRAIT_MARGIN;  // so the two blocks line up edge to edge
+const STRIP_CELL_PAD = 2;     // each cell's gutters
+const STRIP_FONT_MIN = 11;
+// Landscape floor: however little room the rails leave, the frame never gets
+// squeezed below this, which is what keeps the width budget positive.
+const MIN_BOX_W  = 320;
+const FONT_FLOOR = 6;
+// Below this a rail has no room for .panel's 12 px gutters and the longest
+// labels ("DIGITAL RAIN", "KILLER KARD") clip; `body.tight-rails` drops them
+// to 4 px. It shifts the HUD row 8 px out of register with the buttons, since
+// hud.js hardcodes the 12 -- invisible, and not worth forking a shared file
+// over at a width no shipping phone reports even on its side.
+const RAIL_TIGHT_W = 100;
+
+const isPortrait = (W, H) => H > W && W < PORTRAIT_MAX_W;
+
+// env(safe-area-inset-*) is reachable from CSS only, so read it through a
+// probe: portrait puts buttons against the bottom edge, where the home
+// indicator lives, and the frame up under the notch.
+function safeInsets() {
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;" +
+    "top:env(safe-area-inset-top,0px);bottom:env(safe-area-inset-bottom,0px)";
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const out = { top: parseFloat(cs.top) || 0, bottom: parseFloat(cs.bottom) || 0 };
+  probe.remove();
+  return out;
+}
+
+// Largest font whose frame fits the width and height budgets. cw is rounded
+// to a whole pixel, so the size the ratios pick can still overflow by a few
+// columns' worth -- hence the step-down against the real measured width.
+function fitFont(borderW, rowBudget, availW, availH, limitW) {
+  const base = measure(fireCtx, 100);
+  const byW = availW / borderW / (base.cw / 100);
+  const byH = availH / rowBudget / (base.ch / 100);
+  let px = Math.max(FONT_FLOOR, Math.floor(Math.min(byW, byH)));
+  while (px > FONT_FLOOR && measure(fireCtx, px).cw * borderW > limitW) px--;
+  return px;
+}
+
 function computeLayout(W, H) {
   const innerW = COLS + 1;            // 81
   const borderW = COLS + 3;           // 83
   const innerRows = ROWS + 4;         // 36 (fire + logs + embers + hearth base)
   const totalRows = 1 + innerRows + 1 + 1; // 39 (title lives in the bottom border)
+  const portrait = isPortrait(W, H);
+  // The HUD row sits one row BELOW the frame (constants.js hudRowTop), so in
+  // portrait the vertical budget is the frame plus that row plus one spare.
+  const HUD_ROWS = 2;
 
-  const base = measure(fireCtx, 100);
-  const availH = H * 0.96;
-  const availW = W - 2 * PANEL_W - 40; // keep the box between the panels
-  const byH = availH / totalRows / (base.ch / 100);
-  const byW = availW / borderW / (base.cw / 100);
-  const fontPx = Math.max(8, Math.floor(Math.min(byH, byW)));
+  const inset = safeInsets();
+  let fontPx, railW = PANEL_W, frameTop = 0, frameBudgetH = 0;
+  let blockTop = 0, controlsH = 0, stripPx = 0;
+
+  if (portrait) {
+    const rows = Math.ceil(LEFT_LABELS.length / CONTROL_COLS);
+    controlsH = rows * BTN_MIN_H + (rows - 1) * BTN_GAP;
+    const blockH = controlsH + BTN_GAP + STRIP_H;
+    const availW = W - 2 * PORTRAIT_MARGIN;
+    frameTop     = inset.top + PORTRAIT_MARGIN;
+    frameBudgetH = H - inset.top - inset.bottom - blockH - PORTRAIT_MARGIN * 3;
+    blockTop     = H - inset.bottom - PORTRAIT_MARGIN - blockH;
+    fontPx = fitFont(borderW, totalRows + HUD_ROWS, availW, frameBudgetH, availW);
+
+    const cells   = PALETTES.length;
+    const cellW   = (W - 2 * STRIP_PAD_X - (cells - 1) * STRIP_GAP) / cells;
+    const nameMax = PALETTES.reduce((n, p) => Math.max(n, p.name.length), 1);
+    const cwPerPx = measure(fireCtx, 100).cw / 100;
+    stripPx = Math.max(STRIP_FONT_MIN, Math.min(PORTRAIT_BTN_PX,
+      Math.floor((cellW - 2 * STRIP_CELL_PAD) / nameMax / cwPerPx)));
+  } else {
+    railW = Math.max(0, Math.min(PANEL_W, Math.floor((W - MIN_BOX_W - 40) / 2)));
+    frameBudgetH = H * 0.96;
+    const availW = W - 2 * railW - 40;   // keep the box between the panels
+    // The step-down limit is the wider W - 2*railW - 8: if rounding pushes the
+    // frame past the 40 px gutter it may eat into it rather than drop a whole
+    // font size, which at these sizes costs a quarter of the box width.
+    fontPx = fitFont(borderW, totalRows, availW, frameBudgetH, W - 2 * railW - 8);
+  }
 
   const { cw, ch, ascent } = measure(fireCtx, fontPx);
 
   const borderX = Math.floor((W - borderW * cw) / 2);
-  const borderY = Math.floor((H - totalRows * ch) / 2);
+  const borderY = portrait
+    ? frameTop + Math.max(0, Math.floor((frameBudgetH - (totalRows + HUD_ROWS) * ch) / 2))
+    : Math.floor((H - totalRows * ch) / 2);
   const fireX = borderX + 2 * cw;
   const fireY = borderY + ch;
   const rightBorderX = borderX + (innerW + 1) * cw;
   const bottomBorderY = fireY + innerRows * ch;
-
-  // Panels (AppLayout.cpp): vertically aligned to the inner rows, centered in
-  // the left/right margins around the bordered box.
   const borderRight = borderX + (COLS + 2) * cw;
-  const panelTop = borderY + ch;
-  const panelH = innerRows * ch;
-  const leftX = Math.floor(borderX / 2 - PANEL_W / 2);
-  const rightX = Math.floor((borderRight + W) / 2 - PANEL_W / 2);
+
+  // Panel boxes. Landscape (AppLayout.cpp): vertically aligned to the inner
+  // rows, centered in the left/right margins around the bordered box.
+  // Portrait: full-bleed under the frame, controls grid then palette strip.
+  const railY = borderY + ch;
+  const railH = innerRows * ch;
+  const leftBox = portrait
+    ? { x: 0, y: blockTop, w: W, h: controlsH }
+    : { x: Math.floor(borderX / 2 - railW / 2), y: railY, w: railW, h: railH };
+  const rightBox = portrait
+    ? { x: 0, y: blockTop + controlsH + BTN_GAP, w: W, h: STRIP_H }
+    : { x: Math.floor((borderRight + W) / 2 - railW / 2), y: railY, w: railW, h: railH };
+
+  // HUD/burn-in anchors -- deliberately NOT the panel boxes above. hud.js and
+  // crt.js read the readout row as `leftX + 12` and `rightX + PANEL_W - 12`,
+  // and both files are byte-identical to app/'s, so the contract is honored in
+  // both geometries rather than forking the shared modules. Landscape at full
+  // rail width reproduces the old values exactly; portrait anchors the row
+  // just inside the frame, since there are no rails beside it any more.
+  const leftX  = portrait ? borderX : leftBox.x;
+  const rightX = portrait ? borderX + borderW * cw - PANEL_W
+                          : rightBox.x + railW - PANEL_W;
 
   return {
-    fontPx, font: fontSpec(fontPx), cw, ch, ascent,
+    portrait, fontPx, font: fontSpec(fontPx), cw, ch, ascent,
     borderX, borderY, fireX, fireY, rightBorderX, bottomBorderY,
     innerW, innerRows, borderW,
-    panelTop, panelH, leftX, rightX,
+    leftBox, rightBox, leftX, rightX,
+    // Panel text is sized independently of the fire font in portrait: the
+    // grid may shrink to texture, a label may not.
+    buttonPx: portrait ? PORTRAIT_BTN_PX : fontPx,
+    stripPx: portrait ? stripPx : fontPx,
+    tightRails: !portrait && railW < RAIL_TIGHT_W,
   };
 }
 
@@ -124,11 +296,16 @@ function buildPanels() {
 }
 
 function positionPanels() {
-  for (const [panel, x] of [[leftPanel, layout.leftX], [rightPanel, layout.rightX]]) {
-    panel.style.left = `${x}px`;
-    panel.style.top = `${layout.panelTop}px`;
-    panel.style.width = `${PANEL_W}px`;
-    panel.style.height = `${layout.panelH}px`;
+  // The stacked/rails split is half geometry (here) and half flow direction
+  // (css/style.css `body.portrait`), so the class and the boxes have to be
+  // set together or the grid lands on rail coordinates.
+  document.body.classList.toggle("portrait", layout.portrait);
+  document.body.classList.toggle("tight-rails", layout.tightRails);
+  for (const [panel, box] of [[leftPanel, layout.leftBox], [rightPanel, layout.rightBox]]) {
+    panel.style.left = `${box.x}px`;
+    panel.style.top = `${box.y}px`;
+    panel.style.width = `${box.w}px`;
+    panel.style.height = `${box.h}px`;
   }
 }
 
@@ -136,12 +313,19 @@ function positionPanels() {
 // text = palette background color.
 function applyButtonStyle() {
   const p = palette();
-  const css = `${layout.fontPx}px "${FONT_NAME}", monospace`;
-  for (const b of [...leftButtons, ...rightButtons]) {
-    b.style.backgroundColor = p.text;
-    b.style.color = p.background;
-    b.style.font = css;
+  // Two sizes in portrait: the controls get a comfortable fixed size, the
+  // palette cells get whatever their eighth of the width will carry. In
+  // landscape both are the fire font and this is the old single pass.
+  const ctrl  = `${layout.buttonPx}px "${FONT_NAME}", monospace`;
+  const strip = `${layout.stripPx}px "${FONT_NAME}", monospace`;
+  for (const [list, css] of [[leftButtons, ctrl], [rightButtons, strip]]) {
+    for (const b of list) {
+      b.style.backgroundColor = p.text;
+      b.style.color = p.background;
+      b.style.font = css;
+    }
   }
+  if (hud) hud.applyPalette(p);
 }
 
 // --- Actions ---------------------------------------------------------------
@@ -297,6 +481,24 @@ function initIdleCursor() {
   wake();
 }
 
+// hud.position() sizes BOTH readouts off the fire font, which in portrait is
+// the 8 px texture size. That is right for the ambient now-playing line and
+// wrong for something you are meant to hit with a thumb, so the donate nag
+// re-applies its own size after every position() and grows its own row to
+// keep a usable target. Landscape desktop is untouched: there the fire font
+// is already the larger of the two. Runs after position(), never inside
+// hud.js -- that file is byte-identical to app/'s and stays that way.
+function styleDonateNag() {
+  if (!hud || !donateNagOn) return;
+  const px   = Math.max(layout.fontPx, PORTRAIT_BTN_PX);
+  const rowH = Math.max(layout.ch, px + 14);   // padding the line, not the box
+  hud.nag.style.fontSize = `${px}px`;
+  hud.nag.style.lineHeight = `${rowH}px`;
+  hud.nag.style.height = `${rowH}px`;
+  hud.nag.style.visibility = "visible";   // re-assert every relayout
+  hud.reflowNag();   // re-check the collision guard at the new width
+}
+
 // --- Loop ------------------------------------------------------------------
 function relayout() {
   const W = window.innerWidth;
@@ -304,8 +506,12 @@ function relayout() {
   fireCanvas.width = W;
   fireCanvas.height = H;
   layout = computeLayout(W, H);
-  crt.resize(W, H);
+  crt.resize(W, H, layout);
   positionPanels();
+  if (hud) {
+    hud.position(layout, W);
+    styleDonateNag();
+  }
   applyButtonStyle();
   fire.render(fireCtx, palette(), layout);
   if (crtEnabled) crt.render();
@@ -320,6 +526,8 @@ async function init() {
   }
 
   buildPanels();
+  hud = createHud();
+  audio.onSongState((state) => hud.songState(state));
   applySafeArea();
   crt.setMonochrome(palette().monochrome, palette().textRGB);
 
@@ -333,19 +541,36 @@ async function init() {
   window.addEventListener("dblclick", toggleFullscreen);
   fireCanvas.addEventListener("pointerdown", onFirePointerDown);
   initIdleCursor();
-  initDonation(palette);
+  openDonation = initDonation(palette);
+  hud.nag.textContent = DONATE_NAG_TEXT;
+  hud.nag.classList.add("donate");
+  hud.nag.setAttribute("role", "button");
+  hud.nag.setAttribute("tabindex", "0");
+  hud.nag.setAttribute("aria-label", "Donate");
+  hud.nag.onclick = () => openDonation();
+  // Enter/Space on a focused div-with-role=button is not free the way it is
+  // on a real <button>; the element is hud.js's, so the keys are added here.
+  hud.nag.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDonation(); }
+  };
+  donateNagOn = true;
+  // Visible from here on. createHud() starts it hidden and nothing else ever
+  // touches its visibility, because setNag() -- the only thing that would --
+  // is deliberately never called on this edition.
+  hud.nag.style.visibility = "visible";
+  styleDonateNag();
+  driftDonateNag();
+  setInterval(driftDonateNag, DONATE_DRIFT_MS);
 
-  // Boot splash — hold the BIOS screen for a beat, then reveal the fire.
-  // Any key or click skips it.
-  const splash = document.getElementById("splash");
-  if (splash) {
-    const dismiss = () => { splash.remove(); startThemeRotation(); };
-    setTimeout(dismiss, 5000);
-    window.addEventListener("keydown", dismiss, { once: true });
-    window.addEventListener("pointerdown", dismiss, { once: true });
-  } else {
-    startThemeRotation();   // no splash to wait on
-  }
+  // Boot splash — run the BIOS POST, then reveal the fire. Any key or click
+  // skips it; boot.js owns both listeners and neither swallows the event, so
+  // the key still reaches onKeyDown above. This edition ships no payment
+  // system, so the premium step is handed a settled `true` and succeeds
+  // without asking anyone.
+  runBootSplash({
+    entitled: Promise.resolve(true),
+    onDone: () => { startThemeRotation(); },
+  });
 
   // PWA: register the service worker for offline + install support.
   if ("serviceWorker" in navigator && window.isSecureContext) {

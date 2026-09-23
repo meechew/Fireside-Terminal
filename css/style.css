@@ -65,16 +65,165 @@ body.idle, body.idle * {
   outline-offset: 2px;
 }
 
-/* Boot splash — fullscreen over everything until main.js removes it. */
+/* A viewport too narrow for full rails (main.js RAIL_TIGHT_W): the gutters go
+   before the labels do. */
+body.tight-rails .panel { padding: 0 4px; }
+
+/* --- Portrait: stacked controls (PLAN-1.1.0.md feature 10) ----------------
+   main.js switches geometry and adds `body.portrait`; the two must move
+   together. The rails become a block under the frame: the eight controls as a
+   2-wide grid -- which is also how the list reads best, one row per pair
+   (FUEL, O2, then the sound group and the premium pair) -- and the palettes
+   as a horizontal scroller beneath it.
+
+   Button text is sized from main.js's PORTRAIT_BTN_PX rather than the fire
+   font. That split is the whole point: the 80x32 grid is texture and may go
+   down to 4 px a cell, but a label has to stay readable and a touch target
+   has to stay 44 px, and the old code drove both off `layout.fontPx`. */
+body.portrait #left {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+/* All eight palettes on one row, always -- the row never scrolls, so nothing
+   is hidden behind a gesture. gap and padding are duplicated in main.js
+   (STRIP_GAP, STRIP_PAD_X) which sizes the type against the cell they leave;
+   change them together. The row's gutters and gap are the control grid's own
+   (8 / 6, above), so the two blocks read as one panel: a tighter 4 / 3 left
+   the palette row hanging past the controls' edges on both sides
+   (2026-09-23). */
+body.portrait #right {
+  flex-direction: row;
+  gap: 6px;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+/* One cell each, all equal, sized purely by the share of the row -- never by
+   the label, which is what `min-width: 0` enforces: a flex item's default
+   `min-width: auto` lets its intrinsic text width beat its flex basis, so
+   without it DIGITAL RAIN would take more room than 1978 and the row would
+   come out ragged.
+
+   Names too long for their cell ellipsize rather than clip. "DIGITAL R..."
+   reads as a name that did not fit; "DIGITAL R" reads as a bug. main.js
+   picks the type size so this only happens when the width genuinely cannot
+   carry the longest name. */
+body.portrait #right button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;  /* .panel button already sets white-space: nowrap */
+}
+
+/* Boot splash — fullscreen over everything until js/boot.js removes it.
+   The backdrop used to be an object-fit: contain <img>, which scales and
+   centers itself but leaves an overlay no way to follow it. Same geometry
+   done explicitly instead: a fixed 1920x1080 stage, scaled by the contain
+   factor boot.js writes into --splash-scale, with the baked art and the live
+   POST text as siblings inside it. That is what lets DOM text land on the
+   same pixel grid the art was baked on (x=96, 40px line pitch). */
 #splash {
   position: fixed;
+  /* Longhand as well as the shorthand: `inset` is Chromium 87 and the syntax
+     floor here is Tizen 5.5 / M69, where the shorthand alone would leave this
+     sitting at its static position instead of covering the screen. */
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: #000;
   z-index: 10;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+#splash-stage {
+  position: relative;
+  flex: 0 0 auto;
+  width: 1920px;
+  height: 1080px;
+  transform: scale(var(--splash-scale, 1));
+  transform-origin: 50% 50%;
+}
+#splash-art {
+  display: block;
+  width: 1920px;
+  height: 1080px;
+}
+#splash-post,
+#splash-final {
+  position: absolute;
+  font-family: "Less Perfect DOS VGA", monospace;
+  white-space: pre;
+}
+/* Geometry measured off the baked art: text starts at x=96, the first POST
+   row is centered on y=177 and the rows sit on a 40px pitch. Color is the
+   art's own text color, sampled by scripts/render-splash-version.mjs. */
+#splash-post {
+  left: 96px;
+  top: 157px;
+  font-size: 28px;
+  line-height: 40px;
+  color: rgb(160, 160, 150);
+}
+/* The closing line, centered under the wordmark on the row the art used to
+   bake "STOKING THE FIRE ..." into (centered on y=942), in that line's own
+   dimmer, warmer tone. */
+#splash-final {
+  left: 0;
+  right: 0;
+  top: 922px;
+  text-align: center;
+  font-size: 28px;
+  line-height: 40px;
+  letter-spacing: 1.5px;
+  color: rgb(120, 105, 80);
+}
+/* The word the closing line lands on. EGA 4, dark red — the ember attribute,
+   not the light red (12) a FAILURE prints in — with a halo under it so it
+   reads as glowing coal rather than as dim text. The halo is drawn in the
+   same red, widening and fading, which is what an out-of-focus phosphor dot
+   does on a CRT. */
+.splash-hot {
+  color: #AA0000;
+  text-shadow: 0 0 6px rgba(170, 0, 0, 0.90),
+               0 0 14px rgba(170, 0, 0, 0.55),
+               0 0 26px rgba(150, 20, 0, 0.35);
+}
+
+/* The prompt, one row under the closing line: the boot waits here so the
+   POST can actually be read, and any key (or the 30 s timeout) ignites. It
+   blinks on the cursor's own half-period so it reads as a prompt rather than
+   as another baked caption, and it is dimmer than the closing line so the
+   eye still lands on PREHEATING THE COALS first. */
+#splash-prompt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 992px;
+  text-align: center;
+  font-family: "Less Perfect DOS VGA", monospace;
+  white-space: pre;
+  font-size: 28px;
+  line-height: 40px;
+  letter-spacing: 1.5px;
+  color: rgb(100, 88, 68);
+}
+/* The blink starts when boot.js adds the class, not at page load, so the
+   prompt cannot arrive in the dark half of a cycle and look dropped. */
+#splash-prompt.on { animation: splash-blink 1s step-end infinite; }
+
+/* The POST cursor, and the memory count's smear while the digits churn. */
+.splash-cursor { animation: splash-blink 1s step-end infinite; }
+.splash-count  { filter: blur(0.9px); }
+@keyframes splash-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
 /* Donation pop-up (exit intent) — terminal-styled modal. All colors come
    inline from the active palette (set in donate.js). */
@@ -89,13 +238,42 @@ body.idle, body.idle * {
 }
 
 /* Donation QR codes — corners + top/bottom center, palette-tinted onto
-   canvas. */
+   canvas. Each card is an <a> or a <button> (js/donate.js), so both sets of
+   UA chrome have to come off: the card IS the control, and it should look
+   exactly as it did when it was a div. */
 .donate-qr {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.donate-qr:hover { filter: brightness(1.2); }
+
+.donate-qr:focus-visible {
+  filter: brightness(1.2);
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 4px;
+}
+
+/* "COPIED" after a crypto card is tapped -- or, if the clipboard refused
+   outright, the address itself, so the card is never a dead end. Colored
+   from the palette's hot at build time, like PLEASE DONATE above it. */
+.donate-flash {
+  font-size: clamp(0.6rem, 1.3vmin, 0.9rem);
+  letter-spacing: 0.15em;
+  max-width: clamp(110px, 26vmin, 280px);
+  overflow-wrap: anywhere;
 }
 
 .donate-qr.tl { top: 2.5vh; left: 2.5vw; }
@@ -166,4 +344,35 @@ body.idle, body.idle * {
   filter: brightness(1.25);
   outline: 2px solid rgba(255, 255, 255, 0.9);
   outline-offset: 2px;
+}
+
+/* HUD readouts (PLAN-1.1.0.md feature 14) — one text row on the bottom-border
+   baseline, aligned to the outer edge of the button columns. Absolute
+   geometry and colors are set per-layout/per-palette from js/hud.js, the same
+   way the panels are. Same z-index as the panels, so the CRT grid still lays
+   scanlines over them but the glow/burn canvas stays behind. */
+.hud {
+  position: absolute;
+  z-index: 2;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: "Less Perfect DOS VGA", monospace;
+}
+
+/* The nag slot re-used as the touch entry to the donation pop-up (js/main.js
+   wires it; the premium nag never runs in this free edition, so the corner is
+   permanently empty otherwise). It keeps the nag's duty cycle and anti-burn
+   drift and becomes the one .hud element that takes a pointer. */
+#hud-nag.donate {
+  pointer-events: auto;
+  cursor: pointer;
+  text-align: right;
+}
+
+/* The nag's 1 Hz blink. Same shape as paywall.js's injected keyframe, but
+   declared here so js/hud.js needs no dependency on the DOS-chrome modules
+   (the PWA ships the HUD without them). */
+@keyframes hud-blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
