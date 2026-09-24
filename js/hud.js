@@ -5,7 +5,10 @@
 //                Driven entirely by the audio engine's onSongState() — either
 //                engine, same surface.
 //   lower right  "TXM NOT INSTALLED" in `hot`, only while the premium
-//                gate is live and unowned.
+//                gate is live and unowned. It comes up with every NOW
+//                PLAYING — as if the missing module were found while the
+//                song loaded, so every skip nags — and on its own if
+//                NAG_MAX_GAP_MS passes with no song.
 //
 // Both sit on the row immediately BELOW the fire frame, aligned to the outer
 // edge of the button columns. Not on the bottom-border row itself: that row
@@ -30,8 +33,8 @@
 import { PANEL_W, NAG_TEXT, LOADING_TEXT, PLAYING_TEXT, ERROR_TEXT, HUD_HOLD_MS,
          hudRowTop } from "./constants.js";
 
-const NAG_BLINK_MS = 10000;    // visible, blinking at 1 Hz
-const NAG_CYCLE_MS = 180000;   // ...once every three minutes
+const NAG_BLINK_MS   = 10000;   // visible, blinking at 1 Hz
+const NAG_MAX_GAP_MS = 300000;  // ...with every NOW PLAYING, and never >5 min apart
 const DRIFT_X = 3;             // px of anti-burn-in jitter per cycle
 const DRIFT_Y = 1;
 
@@ -130,7 +133,10 @@ export class Hud {
   songState(s) {
     if (!s || !this.palette) return;
     if (s.phase === "loading")      this.show(`${LOADING_TEXT} ${s.name}`, "wood", 0);
-    else if (s.phase === "playing") this.show(`${PLAYING_TEXT} ${s.name}`, "wood", HUD_HOLD_MS);
+    else if (s.phase === "playing") {
+      this.show(`${PLAYING_TEXT} ${s.name}`, "wood", HUD_HOLD_MS);
+      this.nagShow();
+    }
     else if (s.phase === "error")   this.show(ERROR_TEXT, "hot", HUD_HOLD_MS);
     else                            this.hide();   // "off"
   }
@@ -154,16 +160,24 @@ export class Hud {
     }
   }
 
+  // Also the NOW PLAYING hook, so it restarts the window (and with it the
+  // 5-minute clock) rather than stacking one. A skip that lands mid-window
+  // keeps the offset it has — a jump there would read as a glitch.
   nagShow() {
-    if (!this.nagWanted) return;
-    this.nag.style.transform = `translate(${randSigned(DRIFT_X)}px, ${randSigned(DRIFT_Y)}px)`;
-    this.nag.style.visibility = "visible";
+    if (!this.nagArmed || !this.nagWanted) return;
+    clearTimeout(this.nagTimer);
+    if (this.nag.style.visibility !== "visible") {
+      this.nag.style.transform = `translate(${randSigned(DRIFT_X)}px, ${randSigned(DRIFT_Y)}px)`;
+      this.nag.style.visibility = "visible";
+    }
     this.nagTimer = setTimeout(() => this.nagHide(), NAG_BLINK_MS);
   }
 
+  // Measured start to start: the next showing is due NAG_MAX_GAP_MS after
+  // this one began, unless a song brings it sooner.
   nagHide() {
     this.nag.style.visibility = "hidden";
-    this.nagTimer = setTimeout(() => this.nagShow(), NAG_CYCLE_MS - NAG_BLINK_MS);
+    this.nagTimer = setTimeout(() => this.nagShow(), NAG_MAX_GAP_MS - NAG_BLINK_MS);
   }
 }
 

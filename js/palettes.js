@@ -24,13 +24,24 @@ function buildTable(ramp) {
   return table;
 }
 
-function makePalette({ name, ramp, text, wood, background = [0, 0, 0], monochrome = false }) {
+// `hot` is the theme's alert/emphasis color — the DOS chrome's "NOT INSTALLED"
+// lines, the focus ring, and the HUD's premium readout (PLAN-1.1.0.md feature
+// 14). It used to be derived at the point of use as table[215], which was
+// wrong on three themes: heat 215 lands somewhere different in every ramp, so
+// B/W got a hot DIMMER than its own text, DIGITAL RAIN (inverted ramp) got a
+// dark green, and ALEJANDRA got a purple within 50 of its text color. Every
+// palette now names its own. Rule for a new one: `hot` must be brighter than
+// `text` and legible on `background`.
+function makePalette({ name, ramp, text, hot, wood, background = [0, 0, 0], monochrome = false }) {
   return {
     name,
     monochrome,
     text: rgb(text[0], text[1], text[2]),
     textRGB: text,
+    hot: rgb(hot[0], hot[1], hot[2]),
+    hotRGB: hot,
     wood: rgb(wood[0], wood[1], wood[2]),
+    woodRGB: wood,
     background: rgb(background[0], background[1], background[2]),
     backgroundRGB: background,
     table: buildTable(ramp),
@@ -59,6 +70,7 @@ const FIRE_RAMP = [
 export const DIGITAL_RAIN = makePalette({
   name: "DIGITAL RAIN",
   text: [0, 255, 65],
+  hot: [180, 255, 200],   // the rain's bright leading glyph — this ramp's hot end is its TOP, not 215
   wood: [0, 140, 60],
   monochrome: true,
   ramp: [
@@ -81,6 +93,7 @@ export const DIGITAL_RAIN = makePalette({
 export const ABYSS = makePalette({
   name: "ABYSS",
   text: [45, 190, 175],
+  hot: [130, 235, 200],
   wood: [110, 145, 135],
   ramp: [
     [20,  [0,   0,   0]],
@@ -99,11 +112,12 @@ export const ABYSS = makePalette({
 
 // Order matches the native palette list in main.cpp / the right-panel selector.
 export const PALETTES = [
-  makePalette({ name: "DEFAULT", ramp: FIRE_RAMP, text: [180, 120, 60], wood: [146, 92, 46] }),
-  makePalette({ name: "CLASSIC", ramp: FIRE_RAMP, text: [229, 229, 229], wood: [146, 92, 46] }),
+  makePalette({ name: "DEFAULT", ramp: FIRE_RAMP, text: [180, 120, 60], hot: [255, 200, 0], wood: [146, 92, 46] }),
+  makePalette({ name: "CLASSIC", ramp: FIRE_RAMP, text: [229, 229, 229], hot: [255, 200, 0], wood: [146, 92, 46] }),
   makePalette({
     name: "B/W",
     text: [229, 229, 229],
+    hot: [255, 255, 255],   // the only headroom a greyscale theme has
     wood: [150, 150, 150],
     monochrome: true,
     ramp: [
@@ -124,6 +138,7 @@ export const PALETTES = [
   makePalette({
     name: "PRISM",
     text: [255, 60, 170],
+    hot: [255, 240, 0],     // the ramp's yellow apex; red-on-pink read muddy
     wood: [200, 50, 135],
     ramp: [
       [20,  [0,   0,   0]],
@@ -142,6 +157,7 @@ export const PALETTES = [
   makePalette({
     name: "ALEJANDRA",
     text: [180, 90, 255],
+    hot: [0, 230, 255],     // the cyan tip is this theme's real accent
     wood: [170, 30, 130],
     ramp: [
       [20,  [0,   0,   0]],
@@ -160,6 +176,7 @@ export const PALETTES = [
   makePalette({
     name: "1978",   // P1 phosphor / VT100 (released 1978)
     text: [0, 210, 0],
+    hot: [30, 255, 20],
     wood: [0, 140, 0],
     monochrome: true,
     ramp: [
@@ -179,6 +196,7 @@ export const PALETTES = [
   makePalette({
     name: "AMBER",
     text: [255, 160, 0],
+    hot: [255, 238, 120],
     wood: [190, 105, 0],
     monochrome: true,
     ramp: [

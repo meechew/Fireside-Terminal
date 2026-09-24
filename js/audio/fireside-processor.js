@@ -41,6 +41,10 @@ const boundedZero = (n) => Math.floor(rnd() * n) === 0; // rng->bounded(n) == 0
 // `gapless` so no silence is ever baked into the MP3s.
 const GAP_S = 0.25;
 
+// What the HUD calls this mode. A worklet is a classic script and cannot
+// import, so this mirrors KK_MODULE_NAME in constants.js by hand.
+const KK_MODULE_NAME = "KillerKard";
+
 class FiresideProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -49,6 +53,15 @@ class FiresideProcessor extends AudioWorkletProcessor {
     this.gapless = !!(options && options.processorOptions && options.processorOptions.gapless);
     this.gapFrames = 0;
     this.mode = "Off";
+
+    // What the HUD is told (PLAN-1.1.0.md feature 14). The module-swap gap
+    // below is a real load, so it gets a real two-phase announcement:
+    // "loading" the moment the target is known, "playing" when the first
+    // non-silent sample actually goes out. Before this, loadSong() posted a
+    // single message at the START of the gap — i.e. a loading event wearing
+    // a playing label.
+    this.moduleName = "";
+    this.pendingPlay = false;
 
     // ---- NES state ----
     this.songIdx = 0;
@@ -108,14 +121,35 @@ class FiresideProcessor extends AudioWorkletProcessor {
     this.gapFrames = Math.round(this.sr * GAP_S) * ((unload ? 1 : 0) + (load ? 1 : 0));
   }
 
+  // Arm a two-phase announcement. Must be called AFTER moduleGap(), so it can
+  // see whether there is a gap to wait out; with no gap (gapless renders, or
+  // a swap that armed none) the two phases collapse into one.
+  announceLoading(name) {
+    this.moduleName = name;
+    this.pendingPlay = true;
+    this.port.postMessage({ type: "song", phase: "loading", name });
+    if (this.gapFrames <= 0) this.announcePlaying();
+  }
+
+  announcePlaying() {
+    if (!this.pendingPlay) return;
+    this.pendingPlay = false;
+    this.port.postMessage({ type: "song", phase: "playing", name: this.moduleName });
+  }
+
   onMessage(m) {
     if (!m) return;
     if (m.type === "mode") {
       if (this.mode === m.mode) return;
       this.moduleGap(this.mode !== "Off", m.mode !== "Off");
       this.mode = m.mode;
+      // Drop any announcement the previous module still had in flight, so a
+      // gap that is still draining cannot re-announce a mode the user has
+      // already left.
+      this.pendingPlay = false;
       if (m.mode === "PcSpeaker") this.startNes();
-      else if (m.mode === "KillerKard") this.resetKK();
+      else if (m.mode === "KillerKard") { this.resetKK(); this.announceLoading(KK_MODULE_NAME); }
+      else this.port.postMessage({ type: "song", phase: "off" });
     } else if (m.type === "next") {
       if (this.mode === "PcSpeaker" && this.songs.length) {
         this.moduleGap(true, true);
@@ -143,7 +177,7 @@ class FiresideProcessor extends AudioWorkletProcessor {
     this.songLenFrames = maxS * this.framesPer16th;
     this.loopsPlayed = 0;
     this.resetTracks();
-    this.port.postMessage({ type: "song", name: s.name });
+    this.announceLoading(s.name);
   }
   resetTracks() {
     this.songPos = 0;
@@ -273,8 +307,10 @@ class FiresideProcessor extends AudioWorkletProcessor {
 
       if (++this.songPos >= this.songLenFrames) {
         if (++this.loopsPlayed >= song.loops) {
-          this.advanceSong();
+          // Gap first: advanceSong() announces, and announceLoading() needs
+          // to see the armed gap to know a "playing" phase is still coming.
           this.moduleGap(true, true);
+          this.advanceSong();
           if (this.gapFrames > 0) { out.fill(0, i + 1); return; }
         } else {
           this.resetTracks();
@@ -415,7 +451,7 @@ class FiresideProcessor extends AudioWorkletProcessor {
       this.rumbleLfoPhase += rumbleInc; if (this.rumbleLfoPhase >= TWO_PI) this.rumbleLfoPhase -= TWO_PI;
       const rumbleGain = (1 + RUMBLE_LFO_DEPTH * rLfo) * (0.70 + 0.55 * eff);
 
-      // Deep chimney roar — white noise through the ~60 Hz resonator, riding
+      // Deep chimney roar — white noise through the ~62 Hz resonator, riding
       // the same slow rumble LFO so the low end swells and recedes.
       const dY = this.deepA1 * this.deepY1 - this.deepA2 * this.deepY2
                + white * (1 - this.deepA2);
@@ -506,6 +542,7 @@ class FiresideProcessor extends AudioWorkletProcessor {
     if (this.gapFrames > 0) {
       this.gapFrames -= frames;
       for (const c of out) c.fill(0);
+      if (this.gapFrames <= 0) this.announcePlaying();
       return true;
     }
 

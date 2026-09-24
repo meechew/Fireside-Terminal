@@ -35,7 +35,7 @@ const audio = new AudioEngine();
 // kind of "nag" that decision was about: it interrupts nothing.
 const DONATE_NAG_TEXT = "DONATE HERE!";
 // Always lit, per the brief -- NOT hud.js's setNag() duty cycle, which shows
-// the premium nag for 10 s once every 3 minutes. That cadence exists to keep
+// the premium nag for 10 s per NOW PLAYING, at most 5 min apart. That cadence exists to keep
 // a blinking corner from etching an LG OLED panel, and a permanent blink
 // gives that protection up. Since this one is always on the anti-burn-in
 // drift matters MORE, not less, so it is kept: same +-3 px / +-1 px jitter
