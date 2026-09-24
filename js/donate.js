@@ -38,10 +38,12 @@
 // Two of them are TWO-TONE (user decision 2026-09-23): PayPal's two blues and
 // Ethereum's two facet grays print as full ink and half ink, so the marks
 // keep their shape instead of flattening into a blob. Square's symbol is the
-// Colorful River mark itself (qr/logo-square.png, rendered from the brand's
-// mark-noscan.svg as a brightness mask), since Square's payment page is
-// Colorful River's own — the same reason the Square code's center carries
-// the wordmark rather than Square's logo.
+// same thing its code's center is: the green two-line "Colorful River▮"
+// wordmark (qr/logo-square.png, drawn by scripts/render-cr-mark.mjs with the
+// QR renderer's own drawCenter code), kept in its Pine Static green rather
+// than tinted (`keepColor`) — exactly as the code keeps its center green
+// (`keepGreen`) while the rest of it is tinted. Square's payment page is
+// Colorful River's own, which is why it carries the wordmark at all.
 //
 // URL hooks: ?donate=1 forces the pop-up open (preview while styling);
 // ?nonag=1 suppresses it entirely. If both are given, nonag wins. Parameter
@@ -75,9 +77,9 @@ const QRS = [
   // keepGreen: the Colorful River wordmark in its center stays Pine Static
   // #22E893 instead of being palette-tinted (center region only — the green
   // finder centers tint like everything else).
-  // fit: the badge is round and carries its own margin, so it fills the tile
-  // where a bare glyph sits inside 70% of it.
-  { src: "qr/square.png", logo: "qr/logo-square.png", fit: 0.96, label: "SQUARE", corner: "bc", keepGreen: true,
+  // keepColor: the wordmark stays green, as the code's center does. fit: it
+  // is two lines of type, wide and short, so it takes the whole tile width.
+  { src: "qr/square.png", logo: "qr/logo-square.png", keepColor: true, fit: 1, label: "SQUARE", corner: "bc", keepGreen: true,
     href: "https://square.link/u/93jpZrrb?src=webqr" },
   { src: "qr/eth.png", logo: "qr/logo-eth.png", twoTone: true, label: "ETHEREUM", corner: "br",
     address: "0x97B41A5F7F614a304Dc4E8a43fff4cBb0f5332E8",
@@ -187,11 +189,11 @@ const SYMBOL_PX = 128;   // the symbol tile; CSS scales it like the code canvas
 // ink, however it was colored. With `twoTone`, the ink splits at mid-gray:
 // the darker tone prints full, the lighter at TONE_LIGHT — PayPal's navy P
 // over its sky-blue one, Ethereum's dark facets against its light ones.
-// A source that is already a black-with-alpha mask (the Colorful River mark)
-// passes straight through: black is solid, and its alpha is the picture.
+// With `keepColor` the source is drawn as it is — the Colorful River
+// wordmark in its own green — and nothing below runs.
 const TONE_SPLIT = 0.40;
 const TONE_LIGHT = 0.50;
-function themeLogo(canvas, img, p, twoTone, fit) {
+function themeLogo(canvas, img, p, { twoTone, fit, keepColor } = {}) {
   canvas.width = SYMBOL_PX;
   canvas.height = SYMBOL_PX;
   const ctx = canvas.getContext("2d");
@@ -200,6 +202,7 @@ function themeLogo(canvas, img, p, twoTone, fit) {
   const w = img.width * k, h = img.height * k;
   ctx.clearRect(0, 0, SYMBOL_PX, SYMBOL_PX);
   ctx.drawImage(img, (SYMBOL_PX - w) / 2, (SYMBOL_PX - h) / 2, w, h);
+  if (keepColor) return;
   const id = ctx.getImageData(0, 0, SYMBOL_PX, SYMBOL_PX);
   const d = id.data;
   const ink = p.hotRGB;
@@ -255,7 +258,7 @@ function build(p) {
     if (!q.href) card.onclick = () => copyAddress(q, note);
     overlay.appendChild(card);
     const img = new Image();
-    img.onload = () => (compact ? themeLogo(canvas, img, p, q.twoTone, q.fit)
+    img.onload = () => (compact ? themeLogo(canvas, img, p, q)
                                 : themeQR(canvas, img, p, q.keepGreen));
     img.src = compact ? q.logo : q.src;
   }
