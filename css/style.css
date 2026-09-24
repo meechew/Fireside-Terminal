@@ -294,14 +294,18 @@ body.portrait #right button {
   letter-spacing: 0.2em;
 }
 
-/* Small viewports: corners would collide with the center box — flow the QR
-   cards into a scrollable grid under it instead. */
+/* Small viewports: corners would collide with the center box — flow the
+   cards into a grid under it instead, and (js/donate.js, COMPACT — the same
+   query, keep them together) the cards carry the payment SYMBOL rather than
+   the code, since a code cannot be scanned from the screen it is on. Three
+   to a row on a phone: symbols need far less room than codes, and six in two
+   rows sits under the box without the grid having to scroll. */
 @media (max-width: 800px), (max-height: 560px) {
   #donate {
     flex-flow: row wrap;
     align-content: flex-start;
     justify-content: center;
-    gap: 1.25rem;
+    gap: 1.25rem 0.5rem;
     padding: 1.5rem 1rem;
     overflow-y: auto;
   }
@@ -310,7 +314,11 @@ body.portrait #right button {
     width: min(92vw, 480px);
     padding: 1.5rem 1rem;
   }
-  .donate-qr { position: static; transform: none; }
+  /* #donate-qualified: the corner rules above are .donate-qr.tc / .bc (two
+     classes) and would otherwise out-rank a bare .donate-qr here, leaving
+     the two center cards translated half a card left inside the grid. */
+  #donate .donate-qr { position: static; transform: none; flex: 0 0 30%; }
+  #donate .donate-qr canvas { width: clamp(64px, 18vmin, 96px); }
 }
 
 #donate-box {
