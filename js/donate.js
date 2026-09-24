@@ -35,8 +35,13 @@
 // symbols are the very center marks render-donation-qr.mjs stamps into the
 // codes (qr/logo-*.png), drawn in the palette's hot color off their alpha —
 // so the compact grid is the codes with everything but their hearts removed.
-// Square has no logo file: its center is the drawn Colorful River wordmark,
-// so its symbol is drawn too, Square's own rounded-square mark.
+// Two of them are TWO-TONE (user decision 2026-09-23): PayPal's two blues and
+// Ethereum's two facet grays print as full ink and half ink, so the marks
+// keep their shape instead of flattening into a blob. Square's symbol is the
+// Colorful River mark itself (qr/logo-square.png, rendered from the brand's
+// mark-noscan.svg as a brightness mask), since Square's payment page is
+// Colorful River's own — the same reason the Square code's center carries
+// the wordmark rather than Square's logo.
 //
 // URL hooks: ?donate=1 forces the pop-up open (preview while styling);
 // ?nonag=1 suppresses it entirely. If both are given, nonag wins. Parameter
@@ -54,7 +59,7 @@ let overlay = null;
 // !! printed code does not -- the kind of bug no render and no screenshot can
 // !! show you. Change them together, then re-run that script.
 const QRS = [
-  { src: "qr/paypal.png", logo: "qr/logo-paypal.png", label: "PAYPAL", corner: "tl",
+  { src: "qr/paypal.png", logo: "qr/logo-paypal.png", twoTone: true, label: "PAYPAL", corner: "tl",
     href: "https://www.paypal.com/qrcodes/managed/5b446fc1-5b9f-4deb-a914-06ea00cfd78f?utm_source=payandgetpaid" },
   { src: "qr/venmo.png", logo: "qr/logo-venmo.png", label: "VENMO", corner: "tc",
     href: "https://www.paypal.com/qrcodes/venmocs/a89e5a64-2567-49c5-97c9-9329b4074170?created=1788025730" },
@@ -70,9 +75,11 @@ const QRS = [
   // keepGreen: the Colorful River wordmark in its center stays Pine Static
   // #22E893 instead of being palette-tinted (center region only — the green
   // finder centers tint like everything else).
-  { src: "qr/square.png", logo: "square-mark", label: "SQUARE", corner: "bc", keepGreen: true,
+  // fit: the badge is round and carries its own margin, so it fills the tile
+  // where a bare glyph sits inside 70% of it.
+  { src: "qr/square.png", logo: "qr/logo-square.png", fit: 0.96, label: "SQUARE", corner: "bc", keepGreen: true,
     href: "https://square.link/u/93jpZrrb?src=webqr" },
-  { src: "qr/eth.png", logo: "qr/logo-eth.png", label: "ETHEREUM", corner: "br",
+  { src: "qr/eth.png", logo: "qr/logo-eth.png", twoTone: true, label: "ETHEREUM", corner: "br",
     address: "0x97B41A5F7F614a304Dc4E8a43fff4cBb0f5332E8",
     uri: "ethereum:0x97B41A5F7F614a304Dc4E8a43fff4cBb0f5332E8" },      // EIP-681
 ];
@@ -177,12 +184,18 @@ const SYMBOL_PX = 128;   // the symbol tile; CSS scales it like the code canvas
 // are dark coins with the glyph knocked out in white, so an alpha-only mask
 // would print two solid discs. White (and near-white) pixels become holes,
 // which is what they were on the coin; everything else that is opaque is
-// ink, however it was colored — PayPal's two blues print as one shape.
-function themeLogo(canvas, img, p) {
+// ink, however it was colored. With `twoTone`, the ink splits at mid-gray:
+// the darker tone prints full, the lighter at TONE_LIGHT — PayPal's navy P
+// over its sky-blue one, Ethereum's dark facets against its light ones.
+// A source that is already a black-with-alpha mask (the Colorful River mark)
+// passes straight through: black is solid, and its alpha is the picture.
+const TONE_SPLIT = 0.40;
+const TONE_LIGHT = 0.50;
+function themeLogo(canvas, img, p, twoTone, fit) {
   canvas.width = SYMBOL_PX;
   canvas.height = SYMBOL_PX;
   const ctx = canvas.getContext("2d");
-  const box = SYMBOL_PX * 0.70;
+  const box = SYMBOL_PX * (fit || 0.70);
   const k = Math.min(box / img.width, box / img.height);
   const w = img.width * k, h = img.height * k;
   ctx.clearRect(0, 0, SYMBOL_PX, SYMBOL_PX);
@@ -194,34 +207,14 @@ function themeLogo(canvas, img, p) {
     const a = d[i + 3] / 255;
     const lum = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 255000;
     // 1 for anything darker than ~80% gray, fading to 0 at white.
-    const solid = Math.min(1, Math.max(0, (0.92 - lum) / 0.12));
+    let solid = Math.min(1, Math.max(0, (0.92 - lum) / 0.12));
+    if (twoTone && lum > TONE_SPLIT) solid *= TONE_LIGHT;
     d[i] = ink[0];
     d[i + 1] = ink[1];
     d[i + 2] = ink[2];
     d[i + 3] = Math.round(255 * a * solid);
   }
   ctx.putImageData(id, 0, 0);
-}
-
-// Square's mark: a rounded square outline with a small filled square inside,
-// in the same ink. Drawn, because the Square code's center is the Colorful
-// River wordmark (render-donation-qr.mjs), which is not Square's symbol.
-function drawSquareMark(canvas, p) {
-  canvas.width = SYMBOL_PX;
-  canvas.height = SYMBOL_PX;
-  const ctx = canvas.getContext("2d");
-  const s = SYMBOL_PX * 0.66, o = (SYMBOL_PX - s) / 2, r = s * 0.22, t = s * 0.15;
-  ctx.clearRect(0, 0, SYMBOL_PX, SYMBOL_PX);
-  ctx.strokeStyle = p.hot;
-  ctx.fillStyle = p.hot;
-  ctx.lineWidth = t;
-  ctx.beginPath();
-  ctx.roundRect(o + t / 2, o + t / 2, s - t, s - t, r);
-  ctx.stroke();
-  const inner = s * 0.34;
-  ctx.beginPath();
-  ctx.roundRect((SYMBOL_PX - inner) / 2, (SYMBOL_PX - inner) / 2, inner, inner, inner * 0.18);
-  ctx.fill();
 }
 
 function build(p) {
@@ -261,12 +254,9 @@ function build(p) {
     card.append(canvas, label, note);
     if (!q.href) card.onclick = () => copyAddress(q, note);
     overlay.appendChild(card);
-    if (compact && q.logo === "square-mark") {
-      drawSquareMark(canvas, p);
-      continue;
-    }
     const img = new Image();
-    img.onload = () => (compact ? themeLogo(canvas, img, p) : themeQR(canvas, img, p, q.keepGreen));
+    img.onload = () => (compact ? themeLogo(canvas, img, p, q.twoTone, q.fit)
+                                : themeQR(canvas, img, p, q.keepGreen));
     img.src = compact ? q.logo : q.src;
   }
 
