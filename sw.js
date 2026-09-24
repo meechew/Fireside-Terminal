@@ -2,8 +2,12 @@
 // network-first with cache fallback so deploys show up on the next load
 // while the fire still burns with no connection at all.
 //
-// Bump CACHE on any deploy that changes cached files.
-const CACHE = "fireside-v8"; // v8 = Digital Rain replaces Abyss (inverted ramp)
+// Bump CACHE on any deploy that changes cached files — but NOT per change on
+// a feature branch. It is held at v8 for all of 1.1.0 and advances once, on
+// the merge to master: nothing here reaches a visitor until that deploy, so
+// intermediate numbers would only burn cache generations for builds nobody
+// ever fetched.
+const CACHE = "fireside-v8"; // v8 = the 1.1.0 shell (animated POST, hearth-glow art, portrait layout, donation links)
 
 const SHELL = [
   "./",
@@ -11,10 +15,12 @@ const SHELL = [
   "manifest.webmanifest",
   "css/style.css",
   "js/main.js",
+  "js/boot.js",
   "js/constants.js",
   "js/palettes.js",
   "js/fire.js",
   "js/crt.js",
+  "js/hud.js",
   "js/audio.js",
   "js/songs.js",
   "js/platform.js",
