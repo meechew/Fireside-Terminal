@@ -17,34 +17,50 @@ export const PARAM_MAX    = 255;
 
 // What the app calls the thing you buy (user decision 2026-09-23). The free
 // user is running an IBM XT with its 8087 socket empty, and the app nags them
-// to install the 80T87 THERMAL EXPANSION — the math co-processor pun. Four
+// to install the 80T87 THERMAL EXPANSION — the math co-processor pun. Three
 // words, one job each, so the screens speak with one voice:
 //   THERMAL EXPANSION  the phenomenon the machine reports (POST label,
 //                      socket status, gate text)
-//   TEX                the spec and its driver — the POST parenthetical and
-//                      the TEX.SYS the placard "installs"
-//   TXM                the hardware, THERMAL EXPANSION MODULE — the nag, the
-//                      table column, the socket probe
+//   TEX                its short name — the spec, the driver and the part
+//                      alike: the POST parenthetical, the TEX.SYS the placard
+//                      "installs", the nag, the socket probe. (It was split
+//                      with TXM for the hardware until 2026-09-24; one
+//                      abbreviation reads better than two near-twins.)
 //   80T87              the model, printed only where a detection RESULT is
 // The 80T88 is the machine's own CPU (the placard's free column, and the
 // splash art's "Main Log Processor" line, baked by render-splash-version.mjs).
 // No SX/DX tiers: the XT had none. Mirrors the same block in
-// src/Constants/Constants.hpp (kTxm* / kPostTxm* / kNagText ...); change them
+// src/Constants/Constants.hpp (kTex* / kPostTex* / kNagText ...); change them
 // together, or the blink, the POST and the paywall stop speaking with one
 // voice.
-export const TXM_MODEL         = "80T87";
-export const TXM_CPU           = "80T88";
-export const TXM_DRIVER        = "TEX.SYS";
-export const TXM_OVERLAY       = "T87.OVL";
-export const POST_TXM_LABEL    = "THERMAL EXPANSION (TEX)";
-export const POST_TXM_FOUND    = "80T87 DETECTED";   // green
-export const POST_TXM_MISSING  = "NOT INSTALLED";    // yellow: never attempted
-export const NAG_TEXT          = "TXM NOT INSTALLED";
+export const TEX_MODEL         = "80T87";
+export const TEX_CPU           = "80T88";
+export const TEX_DRIVER        = "TEX.SYS";
+export const TEX_OVERLAY       = "T87.OVL";
+// The paywall's info boxes for its two column heads — the real chips each
+// one is modeled on. A click on a head opens its box and a second click
+// closes it (never hover: most of these machines have a remote, not a
+// mouse). Mirrors kTexCpuTip / kTexModelTip in src/Constants/Constants.hpp.
+export const TEX_CPU_TIP =
+  "80T88 - modeled on the Intel 8088 (1979),\n" +
+  "the CPU inside the original IBM PC. It did\n" +
+  "all of its own math in software, one step\n" +
+  "at a time. Your fire runs on it alone.";
+export const TEX_MODEL_TIP =
+  "80T87 - modeled on the Intel 8087 (1980),\n" +
+  "the math coprocessor that filled the empty\n" +
+  "socket beside the 8088 and took floating-point\n" +
+  "work off its hands. Fitted here, it runs the\n" +
+  "premium features.";
+export const POST_TEX_LABEL    = "THERMAL EXPANSION (TEX)";
+export const POST_TEX_FOUND    = "80T87 DETECTED";   // green
+export const POST_TEX_MISSING  = "NOT INSTALLED";    // yellow: never attempted
+export const NAG_TEXT          = "TEX NOT INSTALLED";
 export const PLACARD_PLAQUE    = "╡ TEX.SYS SETUP ╞";
 export const SOCKET_EMPTY_TEXT = "SOCKET EMPTY";
 export const SOCKET_FULL_TEXT  = "80T87 DETECTED";
 export const GATE_TEXT         = "THIS FUNCTION REQUIRES AN 80T87 THERMAL EXPANSION.";
-export const FINE_PRINT_TEXT   = "Socket accepts 80T87-series TXM. No reboot required.";
+export const FINE_PRINT_TEXT   = "Socket accepts 80T87-series TEX. No reboot required.";
 // These two MUST stay the same length. They occupy the same cells, and the
 // CRT etch burns the PLAYING one permanently — so if LOADING were shorter,
 // the burnt "NOW PLAYING ..." would show through beside it and read as
@@ -53,7 +69,7 @@ export const FINE_PRINT_TEXT   = "Socket accepts 80T87-series TXM. No reboot req
 // right idiom for the padding anyway; the DOS chrome already uses them.
 export const LOADING_TEXT  = "LOADING .......";
 export const PLAYING_TEXT  = "NOW PLAYING ...";
-export const ERROR_TEXT    = "TXM READ ERROR";
+export const ERROR_TEXT    = "TEX READ ERROR";
 export const HUD_HOLD_MS   = 5000;     // how long NOW PLAYING stays up
 
 // What the HUD calls the fire synth. Deliberately NOT the button's

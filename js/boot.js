@@ -45,7 +45,7 @@
 // rejection. main.js registers onKeyDown and window.onPlatformBack before it
 // calls in here, and this module only ADDS listeners, so that stays true.
 
-import { POST_TXM_LABEL, POST_TXM_FOUND, POST_TXM_MISSING, KK_MODULE_NAME } from "./constants.js";
+import { POST_TEX_LABEL, POST_TEX_FOUND, POST_TEX_MISSING, KK_MODULE_NAME } from "./constants.js";
 import { SONGS } from "./songs.js";
 
 // Label + space + dot leader + space, padded out to this column, so every
@@ -91,7 +91,7 @@ const STATUS_COLOR = {
   OK:      GREEN,
   SUCCESS: GREEN,
   READY:   GREEN,
-  [POST_TXM_FOUND]: GREEN,
+  [POST_TEX_FOUND]: GREEN,
   // NOT INSTALLED is yellow, not red (2026-09-23), for two reasons that agree:
   // a red line during a 30 s boot reads to store QA as a functional defect to
   // log (the 2026-09-21 review), and an empty co-processor socket is exactly
@@ -99,7 +99,7 @@ const STATUS_COLOR = {
   // nothing failed. The two SKIP lines under it are the same color for the
   // same reason, so the free boot reads as one yellow story and the HUD nag
   // (NAG_TEXT) finishes the sentence.
-  [POST_TXM_MISSING]: YELLOW,
+  [POST_TEX_MISSING]: YELLOW,
   SKIP:    YELLOW,
   FAILURE: RED,
 };
@@ -294,11 +294,11 @@ export function runBootSplash(opts) {
   async function detectPremium(entitled) {
     // The co-processor line, as an XT BIOS printed its 8087 check: the label
     // is the spec, the verdict is the part found in the socket.
-    const label = POST_TXM_LABEL;
+    const label = POST_TEX_LABEL;
     // Pessimistic until the store says otherwise: if a skip lands before the
     // answer does, NOT INSTALLED is what this line was going to say anyway.
     const L = { label: label, dots: 0, value: "", blur: 0,
-                end: { value: POST_TXM_MISSING } };
+                end: { value: POST_TEX_MISSING } };
     lines.push(L);
     cursorLine = lines.length - 1;
     render();
@@ -306,7 +306,7 @@ export function runBootSplash(opts) {
     let answer = null;
     entitled.then(function (v) {
       answer = v;
-      if (v === true) L.end = { value: POST_TXM_FOUND };
+      if (v === true) L.end = { value: POST_TEX_FOUND };
     }, function () { /* never rejects today; NOT INSTALLED is the right fallback */ });
 
     await sleep(DOT_MS);
@@ -322,7 +322,7 @@ export function runBootSplash(opts) {
     }
     await sleep(SETTLE_MS);
     const ok = answer === true;
-    L.value = ok ? POST_TXM_FOUND : POST_TXM_MISSING;
+    L.value = ok ? POST_TEX_FOUND : POST_TEX_MISSING;
     render();
     return ok;
   }

@@ -4,7 +4,7 @@
 //                then "NOW PLAYING ... <NAME>" for HUD_HOLD_MS, then gone.
 //                Driven entirely by the audio engine's onSongState() — either
 //                engine, same surface.
-//   lower right  "TXM NOT INSTALLED" in `hot`, only while the premium
+//   lower right  "TEX NOT INSTALLED" in `hot`, only while the premium
 //                gate is live and unowned. It comes up with every NOW
 //                PLAYING — as if the missing module were found while the
 //                song loaded, so every skip nags — and on its own if
