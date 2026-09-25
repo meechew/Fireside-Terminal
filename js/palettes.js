@@ -63,8 +63,9 @@ const FIRE_RAMP = [
   [256, [255, 255, 255]],
 ];
 
-// Digital-rain green (user-approved 2026-08-04) — in rotation since 1.1.0,
-// replacing ABYSS. Ramp is INVERTED (except the sub-20 black band): sparse
+// Digital-rain green (user-approved 2026-08-04) — OUT of the rotation again
+// since 2026-09-25, when ABYSS took its slot back (the Qt exemplar's list,
+// mirrored). Kept fully defined, as ABYSS was while benched. Ramp is INVERTED (except the sub-20 black band): sparse
 // flame tips render bright white like a rain column's leading glyph, the hot
 // core fades to deep dark green. Mirrors makeDigitalRain() native.
 export const DIGITAL_RAIN = makePalette({
@@ -88,8 +89,9 @@ export const DIGITAL_RAIN = makePalette({
   ],
 });
 
-// Deep-sea dive — kept OUT of the rotation since 1.1.0 (its slot went to
-// DIGITAL RAIN, decision 2026-08-30). Mirrors makeAbyss() native.
+// Deep-sea dive — back IN the rotation at index 3 since 2026-09-25 (the
+// Qt exemplar's list, mirrored), the first premium theme. It was benched
+// for DIGITAL RAIN from 2026-08-30. Mirrors makeAbyss() native.
 export const ABYSS = makePalette({
   name: "ABYSS",
   text: [45, 190, 175],
@@ -134,26 +136,7 @@ export const PALETTES = [
       [256, [255, 255, 255]],
     ],
   }),
-  DIGITAL_RAIN,
-  makePalette({
-    name: "PRISM",
-    text: [255, 60, 170],
-    hot: [255, 240, 0],     // the ramp's yellow apex; red-on-pink read muddy
-    wood: [200, 50, 135],
-    ramp: [
-      [20,  [0,   0,   0]],
-      [50,  [80,  0,   140]],
-      [80,  [0,   60,  220]],
-      [110, [0,   200, 230]],
-      [140, [40,  230, 80]],
-      [170, [255, 240, 0]],
-      [195, [255, 150, 0]],
-      [220, [255, 50,  50]],
-      [240, [255, 60,  170]],
-      [250, [255, 120, 210]],
-      [256, [255, 200, 230]],
-    ],
-  }),
+  ABYSS,
   makePalette({
     name: "ALEJANDRA",
     text: [180, 90, 255],
@@ -174,7 +157,27 @@ export const PALETTES = [
     ],
   }),
   makePalette({
-    name: "1978",   // P1 phosphor / VT100 (released 1978)
+    name: "AMBER",
+    text: [255, 160, 0],
+    hot: [255, 238, 120],
+    wood: [190, 105, 0],
+    monochrome: true,
+    ramp: [
+      [20,  [0,   0,   0]],
+      [50,  [25,  10,  0]],
+      [80,  [80,  32,  0]],
+      [110, [150, 65,  0]],
+      [140, [210, 110, 0]],
+      [170, [255, 160, 0]],
+      [195, [255, 190, 10]],
+      [220, [255, 215, 50]],
+      [240, [255, 238, 120]],
+      [250, [255, 250, 185]],
+      [256, [255, 255, 220]],
+    ],
+  }),
+  makePalette({
+    name: "PHOSPHOR",   // P1 phosphor / VT100
     text: [0, 210, 0],
     hot: [30, 255, 20],
     wood: [0, 140, 0],
@@ -194,23 +197,22 @@ export const PALETTES = [
     ],
   }),
   makePalette({
-    name: "AMBER",
-    text: [255, 160, 0],
-    hot: [255, 238, 120],
-    wood: [190, 105, 0],
-    monochrome: true,
+    name: "PRISM",
+    text: [255, 60, 170],
+    hot: [255, 240, 0],     // the ramp's yellow apex; red-on-pink read muddy
+    wood: [200, 50, 135],
     ramp: [
       [20,  [0,   0,   0]],
-      [50,  [25,  10,  0]],
-      [80,  [80,  32,  0]],
-      [110, [150, 65,  0]],
-      [140, [210, 110, 0]],
-      [170, [255, 160, 0]],
-      [195, [255, 190, 10]],
-      [220, [255, 215, 50]],
-      [240, [255, 238, 120]],
-      [250, [255, 250, 185]],
-      [256, [255, 255, 220]],
+      [50,  [80,  0,   140]],
+      [80,  [0,   60,  220]],
+      [110, [0,   200, 230]],
+      [140, [40,  230, 80]],
+      [170, [255, 240, 0]],
+      [195, [255, 150, 0]],
+      [220, [255, 50,  50]],
+      [240, [255, 60,  170]],
+      [250, [255, 120, 210]],
+      [256, [255, 200, 230]],
     ],
   }),
 ];

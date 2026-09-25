@@ -48,10 +48,15 @@ export const TEX_CPU_TIP =
   "at a time. Your fire runs on it alone.";
 export const TEX_MODEL_TIP =
   "80T87 - modeled on the Intel 8087 (1980),\n" +
-  "the math coprocessor that filled the empty\n" +
-  "socket beside the 8088 and took floating-point\n" +
-  "work off its hands. Fitted here, it runs the\n" +
-  "premium features.";
+  "the math coprocessor made to sit in the empty\n" +
+  "socket beside the 8088. The 8088 could only\n" +
+  "do whole-number math in hardware; anything\n" +
+  "with a decimal point - fractions, square\n" +
+  "roots, sines, logarithms - it ground out\n" +
+  "slowly in software. The 8087 did that math\n" +
+  "in its own circuits, up to 100 times faster,\n" +
+  "while the 8088 got on with everything else.\n" +
+  "Fitted here, it runs the premium features.";
 export const POST_TEX_LABEL    = "THERMAL EXPANSION (TEX)";
 export const POST_TEX_FOUND    = "80T87 DETECTED";   // green
 export const POST_TEX_MISSING  = "NOT INSTALLED";    // yellow: never attempted

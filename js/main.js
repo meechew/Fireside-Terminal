@@ -114,9 +114,12 @@ const PORTRAIT_BTN_PX = 15;   // panel text -- NOT layout.fontPx
 // largest size at which the LONGEST name still fits whole, capped at the
 // control font and floored at STRIP_FONT_MIN.
 //
-// Above about 589 px -- upright tablets -- nothing truncates. Every phone is
-// narrower than that, so the floor wins there and DIGITAL RAIN and ALEJANDRA
-// ellipsize; the other six show whole. That is the deliberate trade: eight
+// Above about 589 px -- upright tablets -- nothing truncates. That figure was
+// worked out when DIGITAL RAIN (12 characters) was the longest name; since
+// ABYSS took its slot back (2026-09-25) the longest is ALEJANDRA (9), so the
+// real threshold is lower. On a phone the floor still wins and the longest
+// names (ALEJANDRA, PHOSPHOR) are the ones that ellipsize. That is the
+// deliberate trade: eight
 // palettes you can see and reach beat eight whole words parked off-screen
 // behind a scroll gesture nobody knows is there. Every name is still unique
 // in its first four characters, so a clipped one is never ambiguous.
@@ -133,7 +136,7 @@ const STRIP_FONT_MIN = 11;
 const MIN_BOX_W  = 320;
 const FONT_FLOOR = 6;
 // Below this a rail has no room for .panel's 12 px gutters and the longest
-// labels ("DIGITAL RAIN", "KILLER KARD") clip; `body.tight-rails` drops them
+// labels ("KILLER KARD", "ALEJANDRA") clip; `body.tight-rails` drops them
 // to 4 px. It shifts the HUD row 8 px out of register with the buttons, since
 // hud.js hardcodes the 12 -- invisible, and not worth forking a shared file
 // over at a width no shipping phone reports even on its side.
@@ -259,7 +262,7 @@ function computeLayout(W, H) {
 // Panel order matches tvOS (PLAN-1.1.0.md features 2 + 11): FUEL leads the
 // flame pair, SOUND OFF leads the sound group, and the premium pair
 // (KILLER KARD, CRT) sits together at the bottom.
-const LEFT_LABELS = ["FUEL +", "FUEL -", "O2 +", "O2 -", "SOUND OFF", "PC SPEAKER", "KILLER KARD", "CRT OFF"];
+const LEFT_LABELS = ["FUEL +", "FUEL -", "O2 +", "O2 -", "SOUND OFF", "PC SPEAKER", "KILLER KARD", "CRT FILTER"];
 let leftButtons = [];
 let rightButtons = [];
 let crtButton = null;
@@ -320,8 +323,10 @@ function applyButtonStyle() {
   const strip = `${layout.stripPx}px "${FONT_NAME}", monospace`;
   for (const [list, css] of [[leftButtons, ctrl], [rightButtons, strip]]) {
     for (const b of list) {
-      b.style.backgroundColor = p.text;
-      b.style.color = p.background;
+      // --key-face / --key-ink, which style.css's held and latched rules
+      // swap (app/js/main.js's applyButtonStyle, the exemplar's look).
+      b.style.setProperty("--key-face", p.text);
+      b.style.setProperty("--key-ink", p.background);
       b.style.font = css;
     }
   }
@@ -369,7 +374,9 @@ function stopThemeRotation() {
 function toggleCrt() {
   crtEnabled = !crtEnabled;
   crt.setEnabled(crtEnabled);
-  crtButton.textContent = crtEnabled ? "CRT ON" : "CRT OFF";
+  // A latching key: the label stays CRT FILTER and the key stays hollow
+  // while the filter is on (style.css .latched), as the exemplar's does.
+  crtButton.classList.toggle("latched", crtEnabled);
 }
 
 function toggleFullscreen() {
