@@ -13,6 +13,15 @@ export class AudioEngine {
     this.node = null;
     this.mode = Mode.Off;
     this.ready = null;
+    // HUD subscriber (PLAN-1.1.0.md feature 14).
+    this.songStateCb = null;
+  }
+
+  // cb({ phase, name }) — phase is "loading" | "playing" | "off" | "error".
+  onSongState(cb) { this.songStateCb = cb; }
+
+  emitSongState(state) {
+    if (this.songStateCb) this.songStateCb(state);
   }
 
   // Lazily create the AudioContext + worklet on first use (a user gesture, so
@@ -35,7 +44,10 @@ export class AudioEngine {
         processorOptions: { songs: SONGS },
       });
       this.node.port.onmessage = (e) => {
-        if (e.data && e.data.type === "song") console.log("[NES] Now playing:", e.data.name);
+        const d = e.data;
+        if (!d || d.type !== "song") return;
+        if (d.phase === "playing") console.log("[NES] Now playing:", d.name);
+        this.emitSongState(d);
       };
       this.node.connect(this.ctx.destination);
     })();
@@ -55,6 +67,9 @@ export class AudioEngine {
       }
     } catch (err) {
       console.error("[Audio] setMode failed:", err);
+      // No worklet means no announcements will ever arrive, so the HUD would
+      // sit on "LOADING ..." forever. Say what actually happened instead.
+      this.emitSongState({ phase: mode === Mode.Off ? "off" : "error" });
     }
   }
 

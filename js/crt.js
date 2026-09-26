@@ -8,6 +8,10 @@
 //           and screen-blended at 0.32 (0.45 monochrome). This supersedes
 //           the earlier offset ghost-lattice, which cast afterimages into
 //           areas the tube never lit.
+//   etch:   a PERMANENT burn, screen-blended at ETCH_OP. Not accumulator
+//           output — the accumulator forgets anything that leaves the screen
+//           within about a minute, and this is meant to be decades old. See
+//           buildEtch().
 //   mono:   +10% mix toward the palette text color (monochrome palettes).
 //   grid:   scanlines (×0.647 even rows, +0.047 white odd rows), column
 //           separators (×0.835 every 3rd col), and a uv-space smoothstep
@@ -18,7 +22,8 @@
 //   color = 1 − (1−base)·(1−glow·op).
 // The grid bakes "scene*M + A" into one alpha overlay: alpha = 1−M, gray = A/alpha.
 
-import { TIMER_MS } from "./constants.js";
+import { TIMER_MS, PANEL_W, NAG_TEXT, PLAYING_TEXT, hudRowTop } from "./constants.js";
+import { SONGS } from "./songs.js";
 
 // Burn-in tuning (redesigned 2026-08-05, superseding the offset ghost
 // lattice): REAL phosphor wear. A long-exposure accumulator integrates the
@@ -29,13 +34,28 @@ const BURN_PERIOD_MS = 20000; // exposure time constant of the accumulator
 const BURN_ALPHA = 1 - Math.exp(-TIMER_MS / BURN_PERIOD_MS);
 const SOFT_SCALE = 0.5;       // afterimage soften: downscale/upscale halo (~2px)
 
+// The permanent etch (PLAN-1.1.0.md feature 14). Deliberately far fainter
+// than the live accumulator (0.32 / 0.45) — it is old damage, not content.
+const ETCH_OP = 0.10;
+const SMEAR_NAMES = 8;        // how many titles overlap into the illegible part
+
 function smoothstep(e0, e1, x) {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
 }
 
+// Distinct titles, so none of them double-strikes and reads legibly.
+function pickNames(n) {
+  const pool = SONGS.map((s) => s.name);
+  const out = [];
+  for (let i = 0; i < n && pool.length; i++) {
+    out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  return out;
+}
+
 export class Crt {
-  constructor(fireCanvas, crtCanvas, gridCanvas) {
+  constructor(fireCanvas, crtCanvas, gridCanvas, opts) {
     this.fire = fireCanvas;
     this.crt = crtCanvas;
     this.ctx = crtCanvas.getContext("2d");
@@ -55,6 +75,18 @@ export class Crt {
     this.history = document.createElement("canvas");
     this.historyCtx = this.history.getContext("2d");
     this.primed = false;
+
+    // Permanent etch, baked once per layout. `nag` is a property of the
+    // BUILD, not of the viewer: a version that ships the premium blink has a
+    // tube that has been showing it for years, whether or not this
+    // particular owner has paid. (In practice only a payer ever sees it —
+    // the CRT filter is itself premium.) The free PWA has no nag to have
+    // burned in, so it passes false.
+    this.etch = document.createElement("canvas");
+    this.etchNag = !!(opts && opts.nag);
+    this.etchReady = false;
+    // Fixed for the session: a resize must not rewrite the tube's history.
+    this.smear = pickNames(SMEAR_NAMES);
   }
 
   setEnabled(on) {
@@ -72,7 +104,7 @@ export class Crt {
     this.monoTint = tintRGB;
   }
 
-  resize(W, H) {
+  resize(W, H, L) {
     this.crt.width = W;
     this.crt.height = H;
     this.grid.width = W;
@@ -85,7 +117,46 @@ export class Crt {
     this.history.height = H;
     this.primed = false;
     this.buildGrid(W, H);
+    this.buildEtch(W, H, L);
     if (this.enabled) this.render();
+  }
+
+  // Bake the permanent burn. The prefix "NOW PLAYING ..." is the same every
+  // time the readout appears, so it wears in cleanly; the title after it is
+  // different every time, so years of titles pile up in the same cells as an
+  // illegible smear. That is what the tube would really do, which is why the
+  // smear is made of real song names at 1/N opacity rather than invented
+  // glyphs. Drawn in neutral white and screen-blended: a burn is the tube's
+  // own damage and does not change when the palette does.
+  buildEtch(W, H, L) {
+    this.etchReady = false;
+    if (!L) return;
+    this.etch.width = W;
+    this.etch.height = H;
+    const x = this.etch.getContext("2d");
+    x.clearRect(0, 0, W, H);
+    x.font = L.font;
+    x.textAlign = "left";
+    x.textBaseline = "alphabetic";
+    x.fillStyle = "#fff";
+
+    // Exactly the cells the live readouts use — same row rule, same baseline.
+    const y = hudRowTop(L) + L.ascent;
+    const prefix = PLAYING_TEXT + " ";
+    const left = L.leftX + 12;
+    x.globalAlpha = 1;
+    x.fillText(prefix, left, y);
+
+    const nameX = left + x.measureText(prefix).width;
+    x.globalAlpha = 1 / Math.max(1, this.smear.length);
+    for (const name of this.smear) x.fillText(name, nameX, y);
+    x.globalAlpha = 1;
+
+    if (this.etchNag) {
+      x.textAlign = "right";
+      x.fillText(NAG_TEXT, L.rightX + PANEL_W - 12, y);
+    }
+    this.etchReady = true;
   }
 
   // Scanlines + pixel separation + the GL shader's uv-space smoothstep
@@ -162,6 +233,14 @@ export class Crt {
     ctx.globalCompositeOperation = "screen";
     ctx.globalAlpha = op;
     ctx.drawImage(this.blur, 0, 0, W, H);
+
+    // The permanent etch, on top of the living afterimage and never folded
+    // into it (fold it in and it would brighten without bound).
+    if (this.etchReady) {
+      ctx.globalCompositeOperation = "screen";
+      ctx.globalAlpha = ETCH_OP;
+      ctx.drawImage(this.etch, 0, 0);
+    }
 
     // Monochrome tint.
     if (this.monochrome) {

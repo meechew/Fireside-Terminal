@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <!-- viewport-fit=cover: portrait puts buttons against the bottom edge, so the
+       layout goes under the notch and home indicator and main.js reads
+       env(safe-area-inset-*) back out to clear them. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Fireside Terminal</title>
   <meta name="description" content="A cozy ASCII fireplace — retro terminal fire animation with CRT post-processing and NES-style renditions of public-domain Christmas carols.">
   <meta name="theme-color" content="#000000">
@@ -37,9 +40,23 @@
        the fire AND the panels (matches the native full-screen overlay). -->
   <canvas id="grid" hidden></canvas>
 
-  <!-- Boot splash (BIOS POST gag) — sits above everything; main.js removes it
-       after a beat or on the first key press / click. -->
-  <img id="splash" src="splash.png" alt="">
+  <!-- Boot splash (BIOS POST) — sits above everything; js/boot.js animates it
+       and removes it when the POST finishes or on the first key press / click.
+
+       splash.png is the BACKDROP only (version + copyright line, wordmark,
+       rule, embers): it is markup, so it paints before any JS runs, which is
+       what keeps the first frame from being black while the module graph and
+       the DOS font load. The POST lines and the closing line are drawn live
+       into the two divs, on a 1920x1080 stage scaled to fit so they land on
+       the same pixel grid the art was baked on. -->
+  <div id="splash">
+    <div id="splash-stage">
+      <img id="splash-art" src="splash.png" alt="">
+      <div id="splash-post"></div>
+      <div id="splash-final"></div>
+      <div id="splash-prompt"></div>
+    </div>
+  </div>
 
   <noscript><p style="color:#e0a458;font-family:monospace;padding:2rem;">Fireside Terminal needs JavaScript to burn.</p></noscript>
 
