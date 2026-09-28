@@ -64,7 +64,8 @@ body.idle, body.idle * {
    a momentary key shows it only while held; a latching key is solid when
    off like every other key and stays hollow (.latched) for as long as it is
    on — the CRT FILTER key while the filter is on, and the sound key for
-   whichever mode is playing (the three latch as a radio group). An inset shadow, not a border, so the key
+   whichever mode is playing (the three latch as a radio group), and the
+   theme key for the palette on screen (a radio group of its own). An inset shadow, not a border, so the key
    keeps its size. */
 .panel button {
   background-color: var(--key-face);

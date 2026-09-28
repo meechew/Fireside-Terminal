@@ -297,6 +297,7 @@ function buildPanels() {
 
   // Right palette selectors
   rightButtons.forEach((b, i) => { b.onclick = () => selectPalette(i); });
+  showPalette();
 }
 
 function positionPanels() {
@@ -340,8 +341,15 @@ function applyButtonStyle() {
 function applyPalette(i) {
   paletteIndex = i;
   applyButtonStyle();
+  showPalette();
   crt.setMonochrome(palette().monochrome, palette().textRGB);
   console.log("[Palette]", palette().name);
+}
+
+// The theme keys latch as a radio group too (the Qt exemplar's showPalette):
+// the key for the palette on screen stays hollow, the rotation's included.
+function showPalette() {
+  rightButtons.forEach((b, i) => b.classList.toggle("latched", i === paletteIndex));
 }
 
 function selectPalette(i) {
