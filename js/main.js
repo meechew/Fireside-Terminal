@@ -289,10 +289,11 @@ function buildPanels() {
   leftButtons[1].onclick = () => fire.decrementFuel();
   leftButtons[2].onclick = () => fire.incrementOxygen();
   leftButtons[3].onclick = () => fire.decrementOxygen();
-  leftButtons[4].onclick = () => audio.setMode(Mode.Off);
-  leftButtons[5].onclick = () => audio.setMode(Mode.PcSpeaker);
-  leftButtons[6].onclick = () => audio.setMode(Mode.KillerKard);
+  leftButtons[4].onclick = () => setSoundMode(Mode.Off);
+  leftButtons[5].onclick = () => setSoundMode(Mode.PcSpeaker);
+  leftButtons[6].onclick = () => setSoundMode(Mode.KillerKard);
   crtButton.onclick = () => toggleCrt();
+  showSoundMode();
 
   // Right palette selectors
   rightButtons.forEach((b, i) => { b.onclick = () => selectPalette(i); });
@@ -371,6 +372,21 @@ function stopThemeRotation() {
   rotateTimer = null;
 }
 
+function setSoundMode(mode) {
+  audio.setMode(mode);
+  showSoundMode();
+}
+
+// The three sound keys latch as a radio group (style.css .latched): the key
+// for the mode that is playing stays hollow, as the exemplar's do (main.cpp
+// showSoundMode). Read back from the engine, so the keyboard mirrors and
+// Play/Pause latch the panel the same way the buttons do.
+function showSoundMode() {
+  leftButtons[4].classList.toggle("latched", audio.mode === Mode.Off);
+  leftButtons[5].classList.toggle("latched", audio.mode === Mode.PcSpeaker);
+  leftButtons[6].classList.toggle("latched", audio.mode === Mode.KillerKard);
+}
+
 function toggleCrt() {
   crtEnabled = !crtEnabled;
   crt.setEnabled(crtEnabled);
@@ -429,16 +445,16 @@ function onKeyDown(e) {
     return;
   }
   if (k === 406 || k === 78 || e.key === "n" || e.key === "N" || e.key === "ColorF3Blue") {
-    if (audio.mode !== Mode.PcSpeaker) audio.setMode(Mode.PcSpeaker);
+    if (audio.mode !== Mode.PcSpeaker) setSoundMode(Mode.PcSpeaker);
     else audio.nextSong();
     return;
   }
   if (k === 405 || e.key === "k" || e.key === "K" || e.key === "ColorF2Yellow") {
-    audio.setMode(Mode.KillerKard);
+    setSoundMode(Mode.KillerKard);
     return;
   }
   if (k === 404 || e.key === "m" || e.key === "M" || e.key === "ColorF1Green") {
-    audio.setMode(Mode.Off);
+    setSoundMode(Mode.Off);
     return;
   }
   if (k === 403 || e.key === "c" || e.key === "C" || e.key === "ColorF0Red") {
@@ -450,8 +466,8 @@ function onKeyDown(e) {
     return;
   }
   if (e.key === "p" || e.key === "P" || e.key === "MediaPlayPause") {
-    if (audio.mode === Mode.Off) audio.setMode(lastSoundMode);
-    else { lastSoundMode = audio.mode; audio.setMode(Mode.Off); }
+    if (audio.mode === Mode.Off) setSoundMode(lastSoundMode);
+    else { lastSoundMode = audio.mode; setSoundMode(Mode.Off); }
     return;
   }
   if (k >= 37 && k <= 40) {                     // Left/Up/Right/Down

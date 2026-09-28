@@ -61,9 +61,10 @@ body.idle, body.idle * {
 /* Key faces come from the palette through --key-face / --key-ink (set per
    palette by main.js's applyButtonStyle), so these rules can swap them.
    Hollow is the "down" look, the Qt exemplar's AppLayout::applyButtonStyle:
-   a momentary key shows it only while held; the CRT FILTER key, a latching
-   toggle, is solid when off like every other key and stays hollow (.latched)
-   for as long as the filter is on. An inset shadow, not a border, so the key
+   a momentary key shows it only while held; a latching key is solid when
+   off like every other key and stays hollow (.latched) for as long as it is
+   on — the CRT FILTER key while the filter is on, and the sound key for
+   whichever mode is playing (the three latch as a radio group). An inset shadow, not a border, so the key
    keeps its size. */
 .panel button {
   background-color: var(--key-face);
