@@ -87,6 +87,38 @@ export class Crt {
     this.etchReady = false;
     // Fixed for the session: a resize must not rewrite the tube's history.
     this.smear = pickNames(SMEAR_NAMES);
+
+    // Live DOM lines stacked over this canvas (the HUD). See maskUnder().
+    this.masks = [];
+  }
+
+  // The HUD lines sit over the etch with no background of their own, so the
+  // filter's glow and tint run through them. What must not run through is
+  // the etch: the burned "NOW PLAYING ..." showing in the gaps of a live one
+  // reads as corrupted text. So while a line is lit, the etch is skipped
+  // inside its box — and returns when it hides or blinks dark.
+  maskUnder(elements) {
+    this.masks = elements;
+  }
+
+  // Boxes of the lit mask elements, in canvas pixels. The canvas backing
+  // store is the window size while its CSS box may be scaled (Android TV's
+  // overscan), so map through the canvas's own rendered rect.
+  litMaskRects() {
+    const out = [];
+    if (!this.masks.length) return out;
+    const c = this.crt.getBoundingClientRect();
+    if (!c.width || !c.height) return out;
+    const sx = this.crt.width / c.width;
+    const sy = this.crt.height / c.height;
+    for (const el of this.masks) {
+      if (el.style.visibility !== "visible" || !el.textContent) continue;
+      if (parseFloat(getComputedStyle(el).opacity) < 0.5) continue;   // blink's dark half
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      out.push([(r.left - c.left) * sx, (r.top - c.top) * sy, r.width * sx, r.height * sy]);
+    }
+    return out;
   }
 
   setEnabled(on) {
@@ -237,9 +269,18 @@ export class Crt {
     // The permanent etch, on top of the living afterimage and never folded
     // into it (fold it in and it would brighten without bound).
     if (this.etchReady) {
+      const holes = this.litMaskRects();
+      if (holes.length) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, W, H);
+        for (const [x, y, w, hh] of holes) ctx.rect(x, y, w, hh);
+        ctx.clip("evenodd");
+      }
       ctx.globalCompositeOperation = "screen";
       ctx.globalAlpha = ETCH_OP;
       ctx.drawImage(this.etch, 0, 0);
+      if (holes.length) ctx.restore();
     }
 
     // Monochrome tint.
