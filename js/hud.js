@@ -94,15 +94,14 @@ export class Hud {
   applyPalette(p) {
     this.palette = p;
     this.nag.style.color = p.hot;
-    // Opaque, in the palette's own background: these boxes sit over the CRT
-    // etch, and a live line showing its own burn through the gaps in its
-    // glyphs reads as corrupted text ("LOADINGYING ..."), not as a ghost.
-    // Masking it is also how the panels already composite over the fire, and
-    // the row is over plain background anyway so the box is invisible. The
-    // burn returns the moment the line hides — and, for the nag, on every
-    // dark half of its blink, because opacity fades the box with the text.
-    this.readout.style.backgroundColor = p.background;
-    this.nag.style.backgroundColor = p.background;
+    // No background: an opaque box in the palette's background read as a
+    // black hole under the CRT filter, which tints and glows everything
+    // around it (the monochrome palettes lift the whole screen ~10%). The
+    // etch still must not show through the gaps in a live line's glyphs —
+    // that reads as corrupted text ("LOADINGYING ..."), not as a ghost — so
+    // crt.js cuts it out under each line while the line is lit (Crt.maskUnder).
+    // The burn returns the moment the line hides, and for the nag on every
+    // dark half of its blink.
     // The readout is wood unless it is currently reporting a failure, which
     // is the one thing in this corner that is not ambience.
     this.readout.style.color = this.readout.dataset.tone === "hot" ? p.hot : p.wood;

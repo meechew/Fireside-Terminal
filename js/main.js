@@ -488,20 +488,17 @@ function initIdleCursor() {
   wake();
 }
 
-// hud.position() sizes BOTH readouts off the fire font, which in portrait is
-// the 8 px texture size. That is right for the ambient now-playing line and
-// wrong for something you are meant to hit with a thumb, so the donate nag
-// re-applies its own size after every position() and grows its own row to
-// keep a usable target. Landscape desktop is untouched: there the fire font
-// is already the larger of the two. Runs after position(), never inside
-// hud.js -- that file is byte-identical to app/'s and stays that way.
+// hud.position() sizes BOTH readouts off the fire font, and the donate nag
+// keeps that size so the two halves of the row match. In portrait that is
+// the small texture size, which is fine to read and too small to hit with a
+// thumb, so the nag's box -- not its type -- grows downward to a usable
+// target: height past the row, line-height left at the row so the text stays
+// on the readout's baseline. The box has no background (hud.js), so the
+// extra height is invisible. Runs after position(), never inside hud.js --
+// that file is shared with app/.
 function styleDonateNag() {
   if (!hud || !donateNagOn) return;
-  const px   = Math.max(layout.fontPx, PORTRAIT_BTN_PX);
-  const rowH = Math.max(layout.ch, px + 14);   // padding the line, not the box
-  hud.nag.style.fontSize = `${px}px`;
-  hud.nag.style.lineHeight = `${rowH}px`;
-  hud.nag.style.height = `${rowH}px`;
+  hud.nag.style.height = `${Math.max(layout.ch, BTN_MIN_H)}px`;
   hud.nag.style.visibility = "visible";   // re-assert every relayout
   hud.reflowNag();   // re-check the collision guard at the new width
 }
@@ -534,6 +531,7 @@ async function init() {
 
   buildPanels();
   hud = createHud();
+  crt.maskUnder([hud.readout, hud.nag]);
   audio.onSongState((state) => hud.songState(state));
   applySafeArea();
   crt.setMonochrome(palette().monochrome, palette().textRGB);
